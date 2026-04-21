@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { ArrowLeft, User as UserIcon, Package, Key, ShoppingBag, Plus, Save, Image as ImageIcon, Edit2, Trash2, Ticket, LayoutDashboard, Wallet, Link as LinkIcon, Copy, CreditCard, Bitcoin, Gamepad2, Receipt, Download, Paperclip } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, User as UserIcon, Package, Key, ShoppingBag, Plus, Save, Image as ImageIcon, Edit2, Trash2, Ticket, LayoutDashboard, Wallet, Link as LinkIcon, Copy, CreditCard, Bitcoin, Gamepad2, Receipt, Download, Paperclip } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, getDocs, doc, updateDoc, addDoc, query, where, deleteDoc, orderBy, getDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 import ImageCropper from '../components/ImageCropper';
@@ -130,7 +130,7 @@ export default function Profile() {
           {activeTab === 'balance' && <BalanceTab user={user} profile={profile} showToast={showToast} />}
           {activeTab === 'affiliate' && <AffiliateTab user={user} profile={profile} showToast={showToast} setActiveTab={setActiveTab} />}
           {activeTab === 'settings' && <SettingsTab profile={profile} showToast={showToast} />}
-          {activeTab === 'purchases' && <PurchasesTab user={user} />}
+          {activeTab === 'purchases' && <PurchasesTab user={user} profile={profile} setActiveTab={setActiveTab} />}
           {activeTab === 'invoices' && <InvoicesTab user={user} />}
           {activeTab === 'tickets' && <TicketsTab user={user} profile={profile} startCreating={searchParams.get('new') === '1'} />}
         </div>
@@ -596,15 +596,21 @@ function AffiliateTab({ user, profile, showToast, setActiveTab }: { user: any, p
   const [customCode, setCustomCode] = useState(profile.affiliateCode || profile.displayName?.toLowerCase().replace(/[^a-z0-9]/g, '') || user.uid);
   const affiliateLink = `${window.location.origin}/?a=${customCode}`;
   const [referredUsers, setReferredUsers] = useState<any[]>([]);
+  const [commissionPercent, setCommissionPercent] = useState(20);
 
   useEffect(() => {
     const fetchAffiliateHistory = async () => {
       try {
-        const q = query(collection(db, 'affiliate_history'), where('affiliateId', '==', user.uid));
-        const snap = await getDocs(q);
+        const [snap, discountsSnap] = await Promise.all([
+          getDocs(query(collection(db, 'affiliate_history'), where('affiliateId', '==', user.uid))),
+          getDoc(doc(db, 'settings', 'discounts'))
+        ]);
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         data.sort((a: any, b: any) => b.date - a.date);
         setReferredUsers(data);
+        if (discountsSnap.exists()) {
+          setCommissionPercent(Number((discountsSnap.data() as any).affiliateCommissionPercent ?? 20));
+        }
       } catch (e) {
         console.error("Failed to fetch affiliate history:", e);
       }
@@ -633,38 +639,53 @@ function AffiliateTab({ user, profile, showToast, setActiveTab }: { user: any, p
     }
   };
 
+  const totalEarned = referredUsers.reduce((sum, item) => sum + Number(item.earned || 0), 0);
+  const totalSales = referredUsers.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Affiliate</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-          <div className="text-sm text-zinc-400 mb-1">Your Affiliate Link</div>
-          <div className="text-xs text-zinc-500 mb-4">Share your affiliate link with friends and earn rewards when they make purchases.</div>
-          <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-lg p-2">
-            <div className="flex items-center gap-2 flex-1">
-                <span className="text-sm text-zinc-500 pl-2">{window.location.origin}/?a=</span>
-                <input 
-                    type="text" 
-                    value={customCode} 
-                    onChange={e => setCustomCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
-                    className="bg-transparent border-none outline-none text-sm text-white w-full"
-                />
-            </div>
-            <button onClick={handleSaveCode} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-md transition-colors mr-2">
-                Save
-            </button>
-            <button onClick={handleCopy} className="text-zinc-400 hover:text-white transition-colors shrink-0 p-2">
-              <Copy className="w-4 h-4" />
-            </button>
-          </div>
+      <div className="mb-8">
+        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300 mb-3">
+          <LinkIcon className="w-3.5 h-3.5" />
+          Affiliate Panel
         </div>
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-6">
-          <div className="text-sm text-zinc-400 mb-1">Affiliate Rewards</div>
-          <div className="text-xs text-zinc-500 mb-4">You earn a percentage of the total invoice amount for each purchase made through your affiliate link.</div>
-          <div className="text-2xl font-bold text-white">20%</div>
+        <h2 className="text-2xl font-bold text-white">Your Affiliate Dashboard</h2>
+        <p className="mt-2 text-zinc-400">Share your link, track referred sales, and receive rewards directly to your balance.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <div className="text-sm text-zinc-400">Commission</div>
+          <div className="mt-2 text-3xl font-bold text-white">{commissionPercent}%</div>
+        </div>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <div className="text-sm text-zinc-400">Total Earned</div>
+          <div className="mt-2 text-3xl font-bold text-emerald-400">${totalEarned.toFixed(2)}</div>
+        </div>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <div className="text-sm text-zinc-400">Referred Sales</div>
+          <div className="mt-2 text-3xl font-bold text-white">${totalSales.toFixed(2)}</div>
         </div>
       </div>
-      
+
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6 mb-6">
+        <div className="text-sm font-semibold text-white mb-3">Your Link</div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-300 break-all">
+            {window.location.origin}/?a=
+            <input
+              value={customCode}
+              onChange={e => setCustomCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+              className="bg-transparent text-white outline-none"
+            />
+          </div>
+          <button onClick={handleSaveCode} className="rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-500">Save</button>
+          <button onClick={handleCopy} className="rounded-lg border border-zinc-800 px-5 py-3 text-sm font-semibold text-zinc-200 hover:bg-zinc-900 flex items-center justify-center gap-2">
+            <Copy className="w-4 h-4" /> Copy
+          </button>
+        </div>
+      </section>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <button onClick={() => setActiveTab('balance')} className="bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 flex items-center justify-between transition-colors">
           <span className="text-sm font-medium text-zinc-300">View Your Balance</span>
@@ -676,35 +697,31 @@ function AffiliateTab({ user, profile, showToast, setActiveTab }: { user: any, p
         </button>
       </div>
 
-      <div className="bg-[#1A1D24] border border-zinc-800/50 rounded-xl p-6">
-        <h3 className="text-lg font-bold text-white mb-4">Referred Users</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#22252D] text-zinc-400">
-              <tr>
-                <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px] rounded-tl-md rounded-bl-md">E-mail Address</th>
-                <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px]">Amount Earned</th>
-                <th className="px-4 py-3 font-bold uppercase tracking-wider text-[11px] rounded-tr-md rounded-br-md">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {referredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-4 py-6 text-zinc-500 text-center">No referred users yet.</td>
-                </tr>
-              ) : (
-                referredUsers.map(ru => (
-                  <tr key={ru.id} className="border-b border-zinc-800/30 last:border-0 hover:bg-zinc-800/20 transition-colors">
-                    <td className="px-4 py-4 text-zinc-300 font-medium">{ru.referredUserEmail}</td>
-                    <td className="px-4 py-4 text-zinc-300">${ru.earned.toFixed(2)}</td>
-                    <td className="px-4 py-4 text-zinc-400">{new Date(ru.date).toLocaleString(undefined, { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+        <div className="border-b border-zinc-800 p-5 flex items-center gap-2 font-semibold text-white">
+          <Wallet className="w-4 h-4 text-indigo-400" />
+          Reward History
         </div>
-      </div>
+        {referredUsers.length === 0 ? (
+          <div className="p-8 text-center text-zinc-500">No referred purchases yet.</div>
+        ) : (
+          <div className="divide-y divide-zinc-800">
+            {referredUsers.map(item => (
+              <div key={item.id} className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <div className="font-medium text-white">{item.referredUserEmail || 'Customer'}</div>
+                  <div className="text-xs text-zinc-500">{new Date(item.date).toLocaleString()}</div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-zinc-400">Order ${Number(item.amount || 0).toFixed(2)}</div>
+                  <div className="font-bold text-emerald-400">+${Number(item.earned || 0).toFixed(2)}</div>
+                  <ArrowUpRight className="w-4 h-4 text-zinc-600" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
@@ -777,15 +794,27 @@ function SettingsTab({ profile, showToast }: { profile: any, showToast: any }) {
   );
 }
 
-function PurchasesTab({ user }: { user: any }) {
+function PurchasesTab({ user, profile, setActiveTab }: { user: any, profile: any, setActiveTab: any }) {
   const [keys, setKeys] = useState<any[]>([]);
+  const [invoiceByKeyId, setInvoiceByKeyId] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [creatingTicketFor, setCreatingTicketFor] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPurchases = async () => {
-      const q = query(collection(db, 'keys'), where('ownerId', '==', user.uid));
-      const snap = await getDocs(q);
-      setKeys(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const [keysSnap, txSnap] = await Promise.all([
+        getDocs(query(collection(db, 'keys'), where('ownerId', '==', user.uid))),
+        getDocs(query(collection(db, 'transactions'), where('userId', '==', user.uid)))
+      ]);
+      const invoiceMap: Record<string, string> = {};
+      txSnap.docs.forEach(txDoc => {
+        const tx = txDoc.data() as any;
+        (tx.items || []).forEach((item: any) => {
+          if (item.keyId) invoiceMap[item.keyId] = txDoc.id;
+        });
+      });
+      setInvoiceByKeyId(invoiceMap);
+      setKeys(keysSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setLoading(false);
     };
     fetchPurchases();
@@ -815,6 +844,64 @@ function PurchasesTab({ user }: { user: any }) {
     URL.revokeObjectURL(url);
   };
 
+  const handleOpenTicket = async (key: any) => {
+    setCreatingTicketFor(key.id);
+    try {
+      const activeTicketsSnap = await getDocs(query(collection(db, 'tickets'), where('userId', '==', user.uid)));
+      const activeTickets = activeTicketsSnap.docs.filter(ticket => ticket.data().status !== 'closed').length;
+      if (activeTickets >= 3) {
+        alert('You can have up to 3 active support tickets at once.');
+        return;
+      }
+
+      const invoiceId = invoiceByKeyId[key.id] || 'Unknown';
+      const batch = writeBatch(db);
+      const newTicketRef = doc(collection(db, 'tickets'));
+      const message = [
+        `Invoice ID: ${invoiceId}`,
+        `Product: ${key.productName || 'Product'}`,
+        `Variant: ${key.variantName || 'Standard'}`,
+        `Key: ${key.keyString}`,
+        '',
+        'Issue: Please describe what happened here.'
+      ].join('\n');
+
+      batch.set(newTicketRef, {
+        userId: user.uid,
+        userEmail: profile.email,
+        subject: `Order issue: ${key.productName || 'Product'}`,
+        status: 'active',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        invoiceId,
+        keyId: key.id,
+        lastMessage: `Invoice ID: ${invoiceId}`
+      });
+
+      batch.set(doc(collection(db, `tickets/${newTicketRef.id}/messages`)), {
+        text: message,
+        senderId: user.uid,
+        senderName: profile.displayName || 'Me',
+        ticketUserId: user.uid,
+        isAdmin: false,
+        createdAt: Date.now()
+      });
+
+      await batch.commit();
+      fetch('/api/discord/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'ticket_created', ticketId: newTicketRef.id })
+      }).catch(() => {});
+      setActiveTab('tickets');
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || 'Failed to create ticket.');
+    } finally {
+      setCreatingTicketFor(null);
+    }
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">My Purchases</h2>
@@ -831,6 +918,7 @@ function PurchasesTab({ user }: { user: any }) {
                   <div className="font-bold text-lg text-white">{k.productName}</div>
                   <div className="text-sm text-zinc-400">{k.variantName}</div>
                   <div className="text-xs text-zinc-500 mt-1">Purchased: {new Date(k.purchasedAt).toLocaleString()}</div>
+                  <div className="text-xs text-zinc-500 mt-1">Invoice ID: <span className="font-mono text-zinc-300">{invoiceByKeyId[k.id] || 'Unknown'}</span></div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => handleCopy(k.keyString)} className="rounded-lg border border-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
@@ -839,9 +927,13 @@ function PurchasesTab({ user }: { user: any }) {
                   <button onClick={() => handleDownload(k)} className="rounded-lg border border-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
                     <Download className="w-3.5 h-3.5" /> Download
                   </button>
-                  <Link to="/profile?tab=tickets&new=1" className="rounded-lg border border-indigo-500/30 px-3 py-2 text-xs font-medium text-indigo-300 hover:bg-indigo-500/10 flex items-center gap-2">
-                    <Ticket className="w-3.5 h-3.5" /> Open Ticket
-                  </Link>
+                  <button
+                    onClick={() => handleOpenTicket(k)}
+                    disabled={creatingTicketFor === k.id}
+                    className="rounded-lg border border-indigo-500/30 px-3 py-2 text-xs font-medium text-indigo-300 hover:bg-indigo-500/10 disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <Ticket className="w-3.5 h-3.5" /> {creatingTicketFor === k.id ? 'Opening...' : 'Open Ticket'}
+                  </button>
                 </div>
               </div>
               <div className="bg-black/50 border border-zinc-800 px-4 py-2 rounded-lg font-mono text-indigo-400 select-all">

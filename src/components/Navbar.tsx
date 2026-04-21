@@ -182,14 +182,16 @@ export default function Navbar() {
     <>
       <Toast toast={toast} />
       {announcement && (
-        <div className="sticky top-0 z-[60] border-b border-indigo-500/20 bg-indigo-600 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center gap-3 text-center text-sm font-medium">
-            <span>{announcement.message}</span>
-            {announcement.linkText && announcement.linkUrl && (
-              <a href={announcement.linkUrl} target="_blank" rel="noreferrer" className="underline decoration-white/50 underline-offset-4 hover:decoration-white">
-                {announcement.linkText}
-              </a>
-            )}
+        <div className="relative z-40 overflow-hidden border-b border-indigo-500/20 bg-indigo-600 text-white">
+          <div className="h-9 whitespace-nowrap">
+            <div className="inline-flex h-9 min-w-full items-center gap-3 px-4 text-sm font-medium animate-marquee-ltr">
+              <span>{announcement.message}</span>
+              {announcement.linkText && announcement.linkUrl && (
+                <a href={announcement.linkUrl} target="_blank" rel="noreferrer" className="underline decoration-white/50 underline-offset-4 hover:decoration-white">
+                  {announcement.linkText}
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -207,7 +209,6 @@ export default function Navbar() {
               <Link to="/" className="text-zinc-300 hover:text-white font-medium transition-colors">Home</Link>
               <Link to="/products" className="text-zinc-300 hover:text-white font-medium transition-colors">Products</Link>
               <Link to="/feedback" className="text-zinc-300 hover:text-white font-medium transition-colors">Feedback</Link>
-              {user && <Link to="/affiliate" className="text-zinc-300 hover:text-white font-medium transition-colors">Affiliate</Link>}
             </div>
 
             {/* Right Actions */}

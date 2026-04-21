@@ -29,7 +29,6 @@ const AdminPayments = lazy(() => import('./pages/admin/Payments'));
 const AdminTeam = lazy(() => import('./pages/admin/Team'));
 const AdminDiscounts = lazy(() => import('./pages/admin/Discounts'));
 const AdminAnnouncements = lazy(() => import('./pages/admin/Announcements'));
-const Affiliate = lazy(() => import('./pages/Affiliate'));
 
 function AffiliateTracker() {
   useEffect(() => {
@@ -96,7 +95,6 @@ export default function App() {
             <Route path="/" element={<Storefront />} />
             <Route path="/products" element={<Products />} />
             <Route path="/feedback" element={<Feedback />} />
-            <Route path="/affiliate" element={<Affiliate />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/product/:slug" element={<ProductPage />} />
             <Route path="/checkout/cart" element={<Checkout />} />

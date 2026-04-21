@@ -6,3 +6,18 @@
     @apply bg-[#0B0E14] text-zinc-50 font-sans selection:bg-indigo-500/30 antialiased;
   }
 }
+
+@layer utilities {
+  @keyframes marquee-ltr {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-marquee-ltr {
+    animation: marquee-ltr 22s linear infinite;
+  }
+}
