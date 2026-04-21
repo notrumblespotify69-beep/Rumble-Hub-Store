@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import Cropper from 'react-easy-crop';
 import { Upload, X, Check } from 'lucide-react';
 
@@ -14,13 +14,17 @@ export default function ImageCropper({ currentImage, onImageCropped, aspectRatio
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const loadImageFile = async (file?: File) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    const imageDataUrl = await readFile(file);
+    setImageSrc(imageDataUrl);
+    if (inputRef.current) inputRef.current.value = '';
+  };
 
   const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      const imageDataUrl = await readFile(file);
-      setImageSrc(imageDataUrl);
-    }
+    await loadImageFile(e.target.files?.[0]);
   };
 
   const onCropCompleteCallback = useCallback((croppedArea: any, croppedAreaPixels: any) => {
@@ -44,22 +48,32 @@ export default function ImageCropper({ currentImage, onImageCropped, aspectRatio
 
   if (!imageSrc) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-zinc-700 rounded-xl bg-zinc-900/50 hover:bg-zinc-900 transition-colors cursor-pointer relative overflow-hidden">
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={e => e.preventDefault()}
+        onDrop={e => {
+          e.preventDefault();
+          void loadImageFile(e.dataTransfer.files?.[0]);
+        }}
+        className="flex w-full flex-col items-center justify-center p-8 border-2 border-dashed border-zinc-700 rounded-xl bg-zinc-900/50 hover:bg-zinc-900 transition-colors cursor-pointer relative overflow-hidden text-center"
+      >
         {currentImage && (
           <img src={currentImage} alt="Current" className="absolute inset-0 w-full h-full object-cover opacity-30" />
         )}
         <input 
+          ref={inputRef}
           type="file" 
           accept="image/*" 
           onChange={onFileChange} 
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          className="sr-only"
         />
-        <div className="relative z-10 flex flex-col items-center">
+        <div className="relative z-10 flex flex-col items-center pointer-events-none">
           <Upload className="w-10 h-10 text-zinc-400 mb-3" />
           <p className="text-sm font-medium text-zinc-200">{currentImage ? 'Click or drag to change image' : 'Click or drag image to upload'}</p>
           <p className="text-xs text-zinc-400 mt-1">PNG, JPG, WEBP up to 5MB</p>
         </div>
-      </div>
+      </button>
     );
   }
 

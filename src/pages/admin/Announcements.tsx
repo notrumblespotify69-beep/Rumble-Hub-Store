@@ -4,6 +4,14 @@ import { Megaphone, Save } from 'lucide-react';
 import { db } from '../../firebase';
 import SEO from '../../components/SEO';
 
+const clampLoopDuration = (value: number) => Math.max(1, Math.min(100, Number.isFinite(value) ? value : 38));
+const normalizeExternalUrl = (url: string) => {
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed.replace(/^\/+/, '')}`;
+};
+
 export default function AdminAnnouncements() {
   const [enabled, setEnabled] = useState(false);
   const [message, setMessage] = useState('');
@@ -31,7 +39,7 @@ export default function AdminAnnouncements() {
         setLinkText(data.linkText || '');
         setLinkUrl(data.linkUrl || '');
         setLoopMessages(Number(data.loopMessages ?? 3));
-        setLoopDuration(Number(data.loopDuration || 38));
+        setLoopDuration(clampLoopDuration(Number(data.loopDuration || 38)));
         setBackgroundColor(data.backgroundColor || '#4f46e5');
         setTextColor(data.textColor || '#ffffff');
       }
@@ -46,9 +54,9 @@ export default function AdminAnnouncements() {
         enabled,
         message,
         linkText,
-        linkUrl,
+        linkUrl: normalizeExternalUrl(linkUrl),
         loopMessages,
-        loopDuration,
+        loopDuration: clampLoopDuration(loopDuration),
         backgroundColor,
         textColor,
         updatedAt: Date.now()
@@ -123,8 +131,9 @@ export default function AdminAnnouncements() {
               value={linkUrl}
               onChange={e => setLinkUrl(e.target.value)}
               className="w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
-              placeholder="https://discord.gg/..."
+              placeholder="discord.gg/..."
             />
+            <p className="text-xs text-slate-500 mt-1">You can paste with or without https://.</p>
           </div>
         </div>
 
@@ -145,11 +154,20 @@ export default function AdminAnnouncements() {
             <label className="block text-sm font-medium text-slate-300 mb-2">Loop Speed</label>
             <input
               type="range"
-              min="12"
-              max="80"
+              min="1"
+              max="100"
+              step="1"
               value={loopDuration}
-              onChange={e => setLoopDuration(Number(e.target.value))}
+              onChange={e => setLoopDuration(clampLoopDuration(Number(e.target.value)))}
               className="w-full accent-indigo-500"
+            />
+            <input
+              type="number"
+              min="1"
+              max="100"
+              value={loopDuration}
+              onChange={e => setLoopDuration(clampLoopDuration(Number(e.target.value)))}
+              className="mt-2 w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
             />
             <div className="text-xs text-slate-500 mt-1">{loopDuration}s to travel across the screen. Higher is slower.</div>
           </div>
@@ -180,19 +198,25 @@ export default function AdminAnnouncements() {
           >
             <div className="h-9 whitespace-nowrap">
               <div className="relative h-9 overflow-hidden text-sm font-medium">
-                {Array.from({ length: Math.max(1, loopMessages) }).map((_, index, items) => (
-                  <span
-                    key={index}
-                    className="absolute left-0 top-0 inline-flex h-9 items-center gap-3 px-4 animate-marquee-ltr"
-                    style={{
-                      '--marquee-duration': `${loopDuration}s`,
-                      animationDelay: `-${(loopDuration / items.length) * index}s`
-                    } as React.CSSProperties}
+                {normalizeExternalUrl(linkUrl) ? (
+                  <a
+                    href={normalizeExternalUrl(linkUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="absolute left-0 top-0 inline-flex h-9 items-center gap-3 px-4 animate-marquee-ltr hover:opacity-90"
+                    style={{ '--marquee-duration': `${clampLoopDuration(loopDuration)}s` } as React.CSSProperties}
                   >
                     <span>{message || 'Your announcement message will appear here.'}</span>
-                    {linkText && linkUrl && <span className="underline decoration-current/50 underline-offset-4">{linkText}</span>}
+                    {linkText && <span className="underline decoration-current/50 underline-offset-4">{linkText}</span>}
+                  </a>
+                ) : (
+                  <span
+                    className="absolute left-0 top-0 inline-flex h-9 items-center gap-3 px-4 animate-marquee-ltr"
+                    style={{ '--marquee-duration': `${clampLoopDuration(loopDuration)}s` } as React.CSSProperties}
+                  >
+                    <span>{message || 'Your announcement message will appear here.'}</span>
                   </span>
-                ))}
+                )}
               </div>
             </div>
           </div>

@@ -14,6 +14,13 @@ function Toast({ toast }: { toast: {message: string, type: string} | null }) {
   );
 }
 
+const normalizeExternalUrl = (url?: string) => {
+  const trimmed = url?.trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed.replace(/^\/+/, '')}`;
+};
+
 export default function Navbar() {
   const { user, profile, login, logout, cart, removeFromCart, clearCart, cartTotal } = useAuth();
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -170,6 +177,9 @@ export default function Navbar() {
     ? cartTotal * (1 - profile.discountPercentage / 100) 
     : cartTotal;
 
+  const announcementDuration = Math.max(1, Math.min(100, Number(announcement?.loopDuration || 38)));
+  const announcementUrl = normalizeExternalUrl(announcement?.linkUrl);
+
   const handleCheckout = async () => {
     if (!user || !profile) return showToast("Please login to checkout", "error");
     if (cart.length === 0) return;
@@ -188,23 +198,29 @@ export default function Navbar() {
         >
           <div className="h-9 whitespace-nowrap">
             <div className="relative h-9 overflow-hidden text-sm font-medium">
-              {Array.from({ length: Math.max(1, Number(announcement.loopMessages ?? 3)) }).map((_, index, items) => (
-                <span
-                  key={index}
-                  className="absolute left-0 top-0 inline-flex h-9 items-center gap-3 px-4 animate-marquee-ltr"
-                  style={{
-                    '--marquee-duration': `${announcement.loopDuration || 38}s`,
-                    animationDelay: `-${((announcement.loopDuration || 38) / items.length) * index}s`
-                  } as React.CSSProperties}
+              {announcementUrl ? (
+                <a
+                  href={announcementUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="absolute left-0 top-0 inline-flex h-9 items-center gap-3 px-4 animate-marquee-ltr hover:opacity-90"
+                  style={{ '--marquee-duration': `${announcementDuration}s` } as React.CSSProperties}
                 >
                   <span>{announcement.message}</span>
-                  {announcement.linkText && announcement.linkUrl && (
-                    <a href={announcement.linkUrl} target="_blank" rel="noreferrer" className="underline decoration-current/50 underline-offset-4 hover:decoration-current">
+                  {announcement.linkText && (
+                    <span className="underline decoration-current/50 underline-offset-4 hover:decoration-current">
                       {announcement.linkText}
-                    </a>
+                    </span>
                   )}
+                </a>
+              ) : (
+                <span
+                  className="absolute left-0 top-0 inline-flex h-9 items-center gap-3 px-4 animate-marquee-ltr"
+                  style={{ '--marquee-duration': `${announcementDuration}s` } as React.CSSProperties}
+                >
+                  <span>{announcement.message}</span>
                 </span>
-              ))}
+              )}
             </div>
           </div>
         </div>
