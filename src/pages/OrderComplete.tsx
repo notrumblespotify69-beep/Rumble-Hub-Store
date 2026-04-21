@@ -278,23 +278,25 @@ export default function OrderComplete() {
                         <div className="px-5 pb-5">
                           <div className="pt-4 border-t border-zinc-800">
                             <div className="text-xs uppercase tracking-wider text-zinc-500 mb-3">Instructions</div>
-                            <div className="mb-6 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">
-                              {item.instructions || 'No special instructions were added for this product.'}
-                            </div>
-                            {item.instructionImage?.url && (
-                              <div className="relative mb-6 min-h-[120px]" style={{ paddingTop: `${item.instructionImage.y || 0}px` }}>
+                            <div className="relative mb-6 min-h-[320px] overflow-hidden rounded-lg border border-zinc-800 bg-black/20 p-5">
+                              <div className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">
+                                {item.instructions || 'No special instructions were added for this product.'}
+                              </div>
+                              {(item.instructionImages?.length ? item.instructionImages : [item.instructionImage]).map((image: any, index: number) => image?.url ? (
                                 <img
-                                  src={item.instructionImage.url}
+                                  key={`${image.id || 'image'}-${index}`}
+                                  src={image.url}
                                   alt="Instruction"
-                                  className="rounded-lg border border-zinc-800 object-contain"
+                                  className="absolute rounded-lg border border-zinc-800 object-contain shadow-2xl"
                                   style={{
-                                    width: `${item.instructionImage.width || 70}%`,
-                                    marginLeft: `${item.instructionImage.x ?? 50}%`,
-                                    transform: 'translateX(-50%)'
+                                    width: `${image.width || 45}%`,
+                                    left: `${image.x ?? 50}%`,
+                                    top: `${image.y ?? 140}px`,
+                                    transform: 'translate(-50%, -50%)'
                                   }}
                                 />
-                              </div>
-                            )}
+                              ) : null)}
+                            </div>
 
                             <div className="flex items-center justify-between mb-3">
                               <div className="text-xs uppercase tracking-wider text-zinc-500">Deliverables</div>

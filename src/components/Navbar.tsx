@@ -182,14 +182,20 @@ export default function Navbar() {
     <>
       <Toast toast={toast} />
       {announcement && (
-        <div className="relative z-40 overflow-hidden border-b border-indigo-500/20 bg-indigo-600 text-white">
+        <div
+          className="relative z-40 overflow-hidden border-b border-white/10"
+          style={{ backgroundColor: announcement.backgroundColor || '#4f46e5', color: announcement.textColor || '#ffffff' }}
+        >
           <div className="h-9 whitespace-nowrap">
-            <div className="flex h-9 w-max items-center gap-16 text-sm font-medium animate-marquee-ltr">
-              {[0, 1, 2, 3, 4, 5].map(index => (
+            <div
+              className="flex h-9 w-max items-center gap-16 text-sm font-medium animate-marquee-ltr"
+              style={{ '--marquee-duration': `${announcement.loopDuration || 38}s` } as React.CSSProperties}
+            >
+              {Array.from({ length: Math.max(2, Number(announcement.loopMessages || 3)) * 2 }).map((_, index) => (
                 <span key={index} className="inline-flex items-center gap-3 px-4">
                   <span>{announcement.message}</span>
                   {announcement.linkText && announcement.linkUrl && (
-                    <a href={announcement.linkUrl} target="_blank" rel="noreferrer" className="underline decoration-white/50 underline-offset-4 hover:decoration-white">
+                    <a href={announcement.linkUrl} target="_blank" rel="noreferrer" className="underline decoration-current/50 underline-offset-4 hover:decoration-current">
                       {announcement.linkText}
                     </a>
                   )}

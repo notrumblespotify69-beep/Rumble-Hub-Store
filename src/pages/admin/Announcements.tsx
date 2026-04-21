@@ -9,6 +9,10 @@ export default function AdminAnnouncements() {
   const [message, setMessage] = useState('');
   const [linkText, setLinkText] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
+  const [loopMessages, setLoopMessages] = useState(3);
+  const [loopDuration, setLoopDuration] = useState(38);
+  const [backgroundColor, setBackgroundColor] = useState('#4f46e5');
+  const [textColor, setTextColor] = useState('#ffffff');
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -26,6 +30,10 @@ export default function AdminAnnouncements() {
         setMessage(data.message || '');
         setLinkText(data.linkText || '');
         setLinkUrl(data.linkUrl || '');
+        setLoopMessages(Number(data.loopMessages || 3));
+        setLoopDuration(Number(data.loopDuration || 38));
+        setBackgroundColor(data.backgroundColor || '#4f46e5');
+        setTextColor(data.textColor || '#ffffff');
       }
     };
     fetchAnnouncement();
@@ -39,6 +47,10 @@ export default function AdminAnnouncements() {
         message,
         linkText,
         linkUrl,
+        loopMessages,
+        loopDuration,
+        backgroundColor,
+        textColor,
         updatedAt: Date.now()
       }, { merge: true });
       showToast('Announcement saved.');
@@ -116,9 +128,70 @@ export default function AdminAnnouncements() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-indigo-500/20 bg-indigo-500/10 p-4 text-sm text-indigo-100">
-          <span className="font-semibold">Preview:</span> {message || 'Your announcement message will appear here.'}
-          {linkText && linkUrl && <span className="ml-2 underline">{linkText}</span>}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Messages In One Loop</label>
+            <input
+              type="number"
+              min="1"
+              max="12"
+              value={loopMessages}
+              onChange={e => setLoopMessages(Math.max(1, Math.min(12, Number(e.target.value))))}
+              className="w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+            />
+            <p className="text-xs text-slate-500 mt-1">More messages means it repeats sooner with less empty space.</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Loop Speed</label>
+            <input
+              type="range"
+              min="12"
+              max="80"
+              value={loopDuration}
+              onChange={e => setLoopDuration(Number(e.target.value))}
+              className="w-full accent-indigo-500"
+            />
+            <div className="text-xs text-slate-500 mt-1">{loopDuration}s per loop. Higher is slower.</div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Background Color</label>
+            <div className="flex gap-2">
+              <input type="color" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="h-10 w-12 rounded border border-[#222b3d] bg-[#0f172a]" />
+              <input value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} className="flex-1 bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Text Color</label>
+            <div className="flex gap-2">
+              <input type="color" value={textColor} onChange={e => setTextColor(e.target.value)} className="h-10 w-12 rounded border border-[#222b3d] bg-[#0f172a]" />
+              <input value={textColor} onChange={e => setTextColor(e.target.value)} className="flex-1 bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-[#222b3d] bg-[#0f172a] p-4">
+          <div className="mb-3 text-sm font-semibold text-white">Live Preview</div>
+          <div
+            className="relative overflow-hidden border-b border-white/10 rounded-lg"
+            style={{ backgroundColor, color: textColor }}
+          >
+            <div className="h-9 whitespace-nowrap">
+              <div
+                className="flex h-9 w-max items-center gap-16 text-sm font-medium animate-marquee-ltr"
+                style={{ '--marquee-duration': `${loopDuration}s` } as React.CSSProperties}
+              >
+                {Array.from({ length: Math.max(2, loopMessages) * 2 }).map((_, index) => (
+                  <span key={index} className="inline-flex items-center gap-3 px-4">
+                    <span>{message || 'Your announcement message will appear here.'}</span>
+                    {linkText && linkUrl && <span className="underline decoration-current/50 underline-offset-4">{linkText}</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="pt-4 border-t border-[#222b3d] flex justify-end">

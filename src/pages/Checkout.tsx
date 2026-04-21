@@ -210,7 +210,7 @@ export default function Checkout() {
     setError('');
 
     try {
-      const keysToBuy: Array<{ docId: string; price: number; title: string; productId: string; variantId: string; variantName: string; image?: string; instructions?: string; instructionImage?: any }> = [];
+      const keysToBuy: Array<{ docId: string; price: number; title: string; productId: string; variantId: string; variantName: string; image?: string; instructions?: string; instructionImage?: any; instructionImages?: any[] }> = [];
       const productsById: Record<string, any> = {};
 
       if (isCartCheckout) {
@@ -243,7 +243,8 @@ export default function Checkout() {
             variantName: item.variantName,
             image: item.image,
             instructions: productsById[item.productId]?.instructions || '',
-            instructionImage: productsById[item.productId]?.instructionImage || null
+            instructionImage: productsById[item.productId]?.instructionImage || null,
+            instructionImages: productsById[item.productId]?.instructionImages || []
           })));
         }
       } else {
@@ -269,7 +270,8 @@ export default function Checkout() {
           variantName: variant.name,
           image: product.image,
           instructions: product.instructions || '',
-          instructionImage: product.instructionImage || null
+          instructionImage: product.instructionImage || null,
+          instructionImages: product.instructionImages || []
         })));
       }
 
@@ -411,7 +413,8 @@ export default function Checkout() {
             price: key.price,
             image: key.image || '',
             instructions: key.instructions || '',
-            instructionImage: key.instructionImage || null
+            instructionImage: key.instructionImage || null,
+            instructionImages: key.instructionImages || []
           };
         });
 
@@ -426,7 +429,8 @@ export default function Checkout() {
             price: key.price,
             productName: key.title,
             instructions: key.instructions || '',
-            instructionImage: key.instructionImage || null
+            instructionImage: key.instructionImage || null,
+            instructionImages: key.instructionImages || []
           });
         });
 

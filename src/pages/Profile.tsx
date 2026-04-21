@@ -939,24 +939,24 @@ function PurchasesTab({ user, profile, setActiveTab }: { user: any, profile: any
               <div className="bg-black/50 border border-zinc-800 px-4 py-2 rounded-lg font-mono text-indigo-400 select-all">
                 {k.keyString}
               </div>
-              {k.instructions && (
-                <div className="rounded-lg border border-zinc-800 bg-black/20 p-4 text-sm text-zinc-300 whitespace-pre-wrap">
+              {(k.instructions || k.instructionImages?.length > 0 || k.instructionImage?.url) && (
+                <div className="relative min-h-[320px] overflow-hidden rounded-lg border border-zinc-800 bg-black/20 p-4">
                   <div className="mb-2 text-xs uppercase tracking-wider text-zinc-500">Instructions</div>
-                  {k.instructions}
-                </div>
-              )}
-              {k.instructionImage?.url && (
-                <div className="relative min-h-[120px] rounded-lg border border-zinc-800 bg-black/20 p-4" style={{ paddingTop: `${(k.instructionImage.y || 0) + 16}px` }}>
+                  <div className="whitespace-pre-wrap text-sm leading-6 text-zinc-300">{k.instructions || 'No special instructions were added for this product.'}</div>
+                  {(k.instructionImages?.length ? k.instructionImages : [k.instructionImage]).map((image: any, index: number) => image?.url ? (
                   <img
-                    src={k.instructionImage.url}
+                    key={`${image.id || 'image'}-${index}`}
+                    src={image.url}
                     alt="Instruction"
-                    className="rounded-lg border border-zinc-800 object-contain"
+                    className="absolute rounded-lg border border-zinc-800 object-contain shadow-2xl"
                     style={{
-                      width: `${k.instructionImage.width || 70}%`,
-                      marginLeft: `${k.instructionImage.x ?? 50}%`,
-                      transform: 'translateX(-50%)'
+                      width: `${image.width || 45}%`,
+                      left: `${image.x ?? 50}%`,
+                      top: `${image.y ?? 140}px`,
+                      transform: 'translate(-50%, -50%)'
                     }}
                   />
+                  ) : null)}
                 </div>
               )}
             </div>

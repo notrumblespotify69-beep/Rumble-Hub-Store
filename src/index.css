@@ -18,6 +18,6 @@
   }
 
   .animate-marquee-ltr {
-    animation: marquee-ltr 38s linear infinite;
+    animation: marquee-ltr var(--marquee-duration, 38s) linear infinite;
   }
 }

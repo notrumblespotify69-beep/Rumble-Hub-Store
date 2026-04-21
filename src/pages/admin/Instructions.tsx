@@ -5,13 +5,25 @@ import { db } from '../../firebase';
 import SEO from '../../components/SEO';
 import ImageCropper from '../../components/ImageCropper';
 
-const defaultInstructionImage = { url: '', width: 70, x: 50, y: 0 };
+const makeInstructionImage = (url = '') => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  url,
+  width: 45,
+  x: 50,
+  y: 140
+});
+
+const normalizeImages = (product: any) => {
+  if (Array.isArray(product.instructionImages)) return product.instructionImages;
+  if (product.instructionImage?.url) return [{ id: 'legacy-image', ...product.instructionImage }];
+  return [];
+};
 
 export default function AdminInstructions() {
   const [products, setProducts] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [instructions, setInstructions] = useState('');
-  const [instructionImage, setInstructionImage] = useState(defaultInstructionImage);
+  const [instructionImages, setInstructionImages] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -36,7 +48,7 @@ export default function AdminInstructions() {
       if (list[0]) {
         setSelectedId(list[0].id);
         setInstructions(list[0].instructions || '');
-        setInstructionImage({ ...defaultInstructionImage, ...(list[0].instructionImage || {}) });
+        setInstructionImages(normalizeImages(list[0]));
       }
     };
     fetchProducts();
@@ -45,7 +57,11 @@ export default function AdminInstructions() {
   const handleSelectProduct = (product: any) => {
     setSelectedId(product.id);
     setInstructions(product.instructions || '');
-    setInstructionImage({ ...defaultInstructionImage, ...(product.instructionImage || {}) });
+    setInstructionImages(normalizeImages(product));
+  };
+
+  const updateImage = (id: string, patch: Record<string, any>) => {
+    setInstructionImages(images => images.map(image => image.id === id ? { ...image, ...patch } : image));
   };
 
   const handleSave = async () => {
@@ -54,11 +70,12 @@ export default function AdminInstructions() {
     try {
       await updateDoc(doc(db, 'products', selectedProduct.id), {
         instructions,
-        instructionImage,
+        instructionImages,
+        instructionImage: instructionImages[0] || null,
         updatedAt: Date.now()
       });
       setProducts(products.map(product => (
-        product.id === selectedProduct.id ? { ...product, instructions, instructionImage } : product
+        product.id === selectedProduct.id ? { ...product, instructions, instructionImages, instructionImage: instructionImages[0] || null } : product
       )));
       showToast('Instructions saved.');
     } catch (error) {
@@ -165,56 +182,58 @@ export default function AdminInstructions() {
                   <ImageIcon className="w-4 h-4 text-indigo-400" />
                   Instruction Image
                 </div>
-                {instructionImage.url && (
+                {instructionImages.length > 0 && (
                   <button
-                    onClick={() => setInstructionImage(defaultInstructionImage)}
+                    onClick={() => setInstructionImages([])}
                     className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"
-                    title="Remove image"
+                    title="Remove all images"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
               <ImageCropper
-                currentImage={instructionImage.url}
-                onImageCropped={url => setInstructionImage(current => ({ ...current, url }))}
+                currentImage=""
+                onImageCropped={url => setInstructionImages(images => [...images, makeInstructionImage(url)])}
                 aspectRatio={16 / 9}
               />
-              {instructionImage.url && (
-                <div className="mt-4 grid grid-cols-1 gap-4">
-                  <label className="text-xs font-medium text-slate-400">
-                    Size: {instructionImage.width}%
-                    <input
-                      type="range"
-                      min="25"
-                      max="100"
-                      value={instructionImage.width}
-                      onChange={e => setInstructionImage(current => ({ ...current, width: Number(e.target.value) }))}
-                      className="mt-2 w-full accent-indigo-500"
-                    />
-                  </label>
-                  <label className="text-xs font-medium text-slate-400">
-                    Horizontal Position: {instructionImage.x}%
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={instructionImage.x}
-                      onChange={e => setInstructionImage(current => ({ ...current, x: Number(e.target.value) }))}
-                      className="mt-2 w-full accent-indigo-500"
-                    />
-                  </label>
-                  <label className="text-xs font-medium text-slate-400">
-                    Top Spacing: {instructionImage.y}px
-                    <input
-                      type="range"
-                      min="0"
-                      max="80"
-                      value={instructionImage.y}
-                      onChange={e => setInstructionImage(current => ({ ...current, y: Number(e.target.value) }))}
-                      className="mt-2 w-full accent-indigo-500"
-                    />
-                  </label>
+              {instructionImages.length > 0 && (
+                <div className="mt-4 space-y-4">
+                  {instructionImages.map((image, index) => (
+                    <div key={image.id} className="rounded-lg border border-slate-800 bg-[#111827] p-3">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="text-xs font-semibold text-slate-300">Image {index + 1}</div>
+                        <button
+                          onClick={() => setInstructionImages(images => images.filter(item => item.id !== image.id))}
+                          className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"
+                          title="Remove image"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <label className="text-xs font-medium text-slate-400">
+                        Size: {image.width}%
+                        <input
+                          type="range"
+                          min="10"
+                          max="100"
+                          value={image.width}
+                          onChange={e => updateImage(image.id, { width: Number(e.target.value) })}
+                          className="mt-2 w-full accent-indigo-500"
+                        />
+                      </label>
+                      <div className="mt-3 grid grid-cols-2 gap-3">
+                        <label className="text-xs font-medium text-slate-400">
+                          X: {image.x}%
+                          <input type="number" value={image.x} onChange={e => updateImage(image.id, { x: Number(e.target.value) })} className="mt-1 w-full rounded border border-slate-800 bg-[#0f172a] px-2 py-1 text-white" />
+                        </label>
+                        <label className="text-xs font-medium text-slate-400">
+                          Y: {image.y}px
+                          <input type="number" value={image.y} onChange={e => updateImage(image.id, { y: Number(e.target.value) })} className="mt-1 w-full rounded border border-slate-800 bg-[#0f172a] px-2 py-1 text-white" />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -222,38 +241,37 @@ export default function AdminInstructions() {
 
           <div className="bg-[#1e293b] border border-slate-800 rounded-xl p-5">
             <div className="mb-3 text-sm font-semibold text-white">Customer Preview</div>
-            <div className="min-h-[520px] rounded-lg border border-slate-800 bg-[#0f172a] p-5">
+            <div className="relative min-h-[520px] rounded-lg border border-slate-800 bg-[#0f172a] p-5 overflow-hidden">
               <div className="text-xs uppercase tracking-wider text-slate-500 mb-4">Instructions</div>
               <div className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-300">
                 {instructions || 'No special instructions were added for this product.'}
               </div>
-              {instructionImage.url && (
-                <div
-                  className="relative mt-5 min-h-[120px]"
-                  style={{ paddingTop: `${instructionImage.y}px` }}
-                >
+              {instructionImages.map(image => (
+                image.url ? (
                   <img
-                    src={instructionImage.url}
+                    key={image.id}
+                    src={image.url}
                     alt="Instruction"
-                    className="cursor-move rounded-lg border border-slate-800 object-contain"
+                    className="absolute cursor-move rounded-lg border border-slate-800 object-contain shadow-2xl"
                     onPointerMove={e => {
                       if (e.buttons !== 1) return;
                       const parent = e.currentTarget.parentElement;
                       if (!parent) return;
                       const rect = parent.getBoundingClientRect();
                       const nextX = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-                      const nextY = Math.min(80, Math.max(0, e.clientY - rect.top));
-                      setInstructionImage(current => ({ ...current, x: Math.round(nextX), y: Math.round(nextY) }));
+                      const nextY = Math.max(0, e.clientY - rect.top);
+                      updateImage(image.id, { x: Math.round(nextX), y: Math.round(nextY) });
                     }}
                     onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
                     style={{
-                      width: `${instructionImage.width}%`,
-                      marginLeft: `${instructionImage.x}%`,
-                      transform: 'translateX(-50%)'
+                      width: `${image.width}%`,
+                      left: `${image.x}%`,
+                      top: `${image.y}px`,
+                      transform: 'translate(-50%, -50%)'
                     }}
                   />
-                </div>
-              )}
+                ) : null
+              ))}
             </div>
           </div>
         </section>
