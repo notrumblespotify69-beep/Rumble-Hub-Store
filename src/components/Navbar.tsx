@@ -191,7 +191,7 @@ export default function Navbar() {
               className="flex h-9 w-max items-center gap-16 text-sm font-medium animate-marquee-ltr"
               style={{ '--marquee-duration': `${announcement.loopDuration || 38}s` } as React.CSSProperties}
             >
-              {Array.from({ length: Math.max(2, Number(announcement.loopMessages || 3)) * 2 }).map((_, index) => (
+              {Array.from({ length: Math.max(1, Number(announcement.loopMessages ?? 3)) }).map((_, index) => (
                 <span key={index} className="inline-flex items-center gap-3 px-4">
                   <span>{announcement.message}</span>
                   {announcement.linkText && announcement.linkUrl && (

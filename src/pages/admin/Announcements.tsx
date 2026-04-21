@@ -30,7 +30,7 @@ export default function AdminAnnouncements() {
         setMessage(data.message || '');
         setLinkText(data.linkText || '');
         setLinkUrl(data.linkUrl || '');
-        setLoopMessages(Number(data.loopMessages || 3));
+        setLoopMessages(Number(data.loopMessages ?? 3));
         setLoopDuration(Number(data.loopDuration || 38));
         setBackgroundColor(data.backgroundColor || '#4f46e5');
         setTextColor(data.textColor || '#ffffff');
@@ -183,7 +183,7 @@ export default function AdminAnnouncements() {
                 className="flex h-9 w-max items-center gap-16 text-sm font-medium animate-marquee-ltr"
                 style={{ '--marquee-duration': `${loopDuration}s` } as React.CSSProperties}
               >
-                {Array.from({ length: Math.max(2, loopMessages) * 2 }).map((_, index) => (
+                {Array.from({ length: Math.max(1, loopMessages) }).map((_, index) => (
                   <span key={index} className="inline-flex items-center gap-3 px-4">
                     <span>{message || 'Your announcement message will appear here.'}</span>
                     {linkText && linkUrl && <span className="underline decoration-current/50 underline-offset-4">{linkText}</span>}

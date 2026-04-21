@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
-import { BookOpen, Check, Image as ImageIcon, Search, Save, Trash2 } from 'lucide-react';
+import { BookOpen, Check, Grip, Image as ImageIcon, Search, Save, Trash2 } from 'lucide-react';
 import { db } from '../../firebase';
 import SEO from '../../components/SEO';
 import ImageCropper from '../../components/ImageCropper';
@@ -241,35 +241,50 @@ export default function AdminInstructions() {
 
           <div className="bg-[#1e293b] border border-slate-800 rounded-xl p-5">
             <div className="mb-3 text-sm font-semibold text-white">Customer Preview</div>
-            <div className="relative min-h-[520px] rounded-lg border border-slate-800 bg-[#0f172a] p-5 overflow-hidden">
+            <div data-instruction-preview="true" className="relative min-h-[520px] rounded-lg border border-slate-800 bg-[#0f172a] p-5 overflow-hidden">
               <div className="text-xs uppercase tracking-wider text-slate-500 mb-4">Instructions</div>
               <div className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-300">
                 {instructions || 'No special instructions were added for this product.'}
               </div>
               {instructionImages.map(image => (
                 image.url ? (
-                  <img
+                  <div
                     key={image.id}
-                    src={image.url}
-                    alt="Instruction"
-                    className="absolute cursor-move rounded-lg border border-slate-800 object-contain shadow-2xl"
-                    onPointerMove={e => {
-                      if (e.buttons !== 1) return;
-                      const parent = e.currentTarget.parentElement;
-                      if (!parent) return;
-                      const rect = parent.getBoundingClientRect();
-                      const nextX = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-                      const nextY = Math.max(0, e.clientY - rect.top);
-                      updateImage(image.id, { x: Math.round(nextX), y: Math.round(nextY) });
-                    }}
-                    onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
+                    className="absolute select-none"
                     style={{
                       width: `${image.width}%`,
                       left: `${image.x}%`,
                       top: `${image.y}px`,
                       transform: 'translate(-50%, -50%)'
                     }}
-                  />
+                  >
+                    <img
+                      src={image.url}
+                      alt="Instruction"
+                      draggable={false}
+                      className="pointer-events-none w-full select-none rounded-lg border border-slate-800 object-contain shadow-2xl"
+                    />
+                    <button
+                      type="button"
+                      className="absolute -right-3 -top-3 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-full border border-indigo-400/50 bg-indigo-600 text-white shadow-lg active:cursor-grabbing"
+                      title="Drag image"
+                      onPointerMove={e => {
+                        if (e.buttons !== 1) return;
+                        const preview = e.currentTarget.closest('[data-instruction-preview="true"]') as HTMLElement | null;
+                        if (!preview) return;
+                        const rect = preview.getBoundingClientRect();
+                        const nextX = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+                        const nextY = Math.max(0, e.clientY - rect.top);
+                        updateImage(image.id, { x: Math.round(nextX), y: Math.round(nextY) });
+                      }}
+                      onPointerDown={e => {
+                        e.preventDefault();
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                      }}
+                    >
+                      <Grip className="h-4 w-4" />
+                    </button>
+                  </div>
                 ) : null
               ))}
             </div>
