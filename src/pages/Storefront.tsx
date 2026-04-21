@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Gamepad2, ShoppingCart, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query, where } from 'firebase/firestore';
 import { useAuth } from '../AuthContext';
 import { db } from '../firebase';
 import Navbar from '../components/Navbar';
@@ -26,22 +26,19 @@ export default function Storefront() {
         const prods = productsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
         setProducts(prods);
 
-        const keysSnap = await getDocs(collection(db, 'keys'));
+        const keysSnap = await getDocs(query(collection(db, 'keys'), where('isSold', '==', false)));
         const counts: Record<string, number> = {};
-        let soldCount = 0;
 
         keysSnap.docs.forEach(d => {
           const data = d.data();
-          if (!data.isSold) {
-            const pid = data.productId;
-            counts[pid] = (counts[pid] || 0) + 1;
-          } else {
-            soldCount++;
-          }
+          const pid = data.productId;
+          counts[pid] = (counts[pid] || 0) + 1;
         });
         setAvailableKeys(counts);
 
         const reviewsSnap = await getDocs(query(collection(db, 'reviews'), orderBy('createdAt', 'desc')));
+        const statsResponse = await fetch('/api/store-stats').catch(() => null);
+        const storeStats = statsResponse?.ok ? await statsResponse.json() : null;
         const allReviews = reviewsSnap.docs.map(d => {
           const rData = d.data() as any;
           const matchedProd = prods.find(p => p.id === rData.productId);
@@ -57,7 +54,7 @@ export default function Storefront() {
         const avgRating = allReviews.length > 0 ? Math.round(totalRating / allReviews.length) : 5;
 
         setStats({
-          productsSold: soldCount,
+          productsSold: Number(storeStats?.productsSold || 0),
           happyCustomers: uniqueUsers.size,
           averageRating: avgRating
         });
@@ -75,21 +72,50 @@ export default function Storefront() {
   return (
     <div className="min-h-screen bg-[#0B0E14] text-zinc-50 font-sans selection:bg-indigo-500/30 relative">
       <SEO />
-      <div className="absolute top-0 left-0 w-full h-screen z-0 pointer-events-none">
-        <div
-          className="w-full h-full bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: 'url(/background.png)' }}
-        />
-        <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-[#0B0E14] to-transparent" />
-      </div>
+      <div className="store-hero-bg absolute left-0 top-0 z-0 h-[100svh] min-h-[620px] w-full pointer-events-none" />
 
       <div className="relative z-10">
         <Navbar />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-[calc(100vh-140px)]">
-          <div className="mb-8 flex items-center justify-between">
-            <h2 className="text-2xl font-bold flex items-center gap-2 uppercase tracking-tight">Featured Products</h2>
-          </div>
+        <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <section className="flex min-h-[540px] items-end pb-10 pt-24 sm:min-h-[620px] sm:pb-16 lg:pt-32">
+            <div className="max-w-2xl">
+              <div className="mb-4 inline-flex items-center gap-2 border border-white/10 bg-black/25 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-200 backdrop-blur">
+                Instant Digital Delivery
+              </div>
+              <h1 className="max-w-xl text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl">
+                Rumble Hub
+              </h1>
+              <p className="mt-5 max-w-lg text-base leading-7 text-zinc-300 sm:text-lg">
+                Browse products, pay securely, and receive your items from one clean customer dashboard.
+              </p>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  to="/products"
+                  className="inline-flex min-h-12 items-center justify-center bg-indigo-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-500"
+                >
+                  Browse Products
+                </Link>
+                <Link
+                  to="/feedback"
+                  className="inline-flex min-h-12 items-center justify-center border border-white/15 bg-black/20 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
+                >
+                  View Reviews
+                </Link>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">
+              <div>
+                <div className="mb-2 text-xs font-bold uppercase tracking-wider text-indigo-400">Featured</div>
+                <h2 className="text-2xl font-bold uppercase tracking-tight sm:text-3xl">Products</h2>
+              </div>
+              <Link to="/products" className="hidden text-sm font-medium text-indigo-300 transition-colors hover:text-indigo-200 sm:block">
+                View all
+              </Link>
+            </div>
 
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -178,8 +204,9 @@ export default function Storefront() {
               })}
             </div>
           )}
+          </section>
 
-          <div className="mt-24 mb-12 text-center">
+          <section className="mt-20 mb-12 text-center sm:mt-24">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/10 text-pink-400 text-xs font-bold mb-4 border border-pink-500/20 uppercase tracking-wider">
               Customers Love Us &hearts;
             </div>
@@ -200,10 +227,10 @@ export default function Storefront() {
                 <div className="text-sm font-medium text-zinc-500 uppercase tracking-wider">Average Rating</div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="mb-24">
-            <div className="flex items-center justify-between mb-8">
+          <section className="mb-24">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-8">
               <div>
                 <h2 className="text-3xl font-extrabold tracking-tight mb-2 text-white">Reviews</h2>
                 <p className="text-zinc-400">See what our customers have to say about us and our products!</p>
@@ -264,7 +291,7 @@ export default function Storefront() {
                 View All Reviews
               </Link>
             </div>
-          </div>
+          </section>
         </main>
       </div>
 

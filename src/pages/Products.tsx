@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import Navbar from '../components/Navbar';
 import SEO from '../components/SEO';
 import { Link } from 'react-router-dom';
@@ -24,13 +24,11 @@ export default function Products() {
         const prodSnap = await getDocs(collection(db, 'products'));
         setProducts(prodSnap.docs.map(d => ({ id: d.id, ...d.data() })));
 
-        const keysSnap = await getDocs(collection(db, 'keys'));
+        const keysSnap = await getDocs(query(collection(db, 'keys'), where('isSold', '==', false)));
         const counts: Record<string, number> = {};
         keysSnap.docs.forEach(d => {
-          if (!d.data().isSold) {
-            const pid = d.data().productId;
-            counts[pid] = (counts[pid] || 0) + 1;
-          }
+          const pid = d.data().productId;
+          counts[pid] = (counts[pid] || 0) + 1;
         });
         setAvailableKeys(counts);
       } catch (e) {

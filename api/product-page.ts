@@ -20,13 +20,17 @@ function stripMarkdown(value: string) {
     .trim();
 }
 
-function getAbsoluteImageUrl(image: string | undefined, origin: string) {
+function getAbsoluteImageUrl(image: string | undefined, origin: string, slug: string) {
   if (!image) {
     return `${origin}/background.png`;
   }
 
   if (image.startsWith('http://') || image.startsWith('https://')) {
     return image;
+  }
+
+  if (image.startsWith('data:image/')) {
+    return `${origin}/api/product-image?slug=${encodeURIComponent(slug)}`;
   }
 
   return `${origin}${image.startsWith('/') ? image : `/${image}`}`;
@@ -71,7 +75,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const description = escapeHtml(
         stripMarkdown(product.description || `Buy ${product.title || 'this product'} on Rumble Hub.`).slice(0, 180)
       );
-      const image = escapeHtml(getAbsoluteImageUrl(product.image, origin));
+      const image = escapeHtml(getAbsoluteImageUrl(product.image, origin, slug));
       const url = escapeHtml(`${origin}/product/${slug}`);
 
       html = html.replace(/<title>.*?<\/title>/i, `<title>${title}</title>`);

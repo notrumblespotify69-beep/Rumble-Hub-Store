@@ -10,6 +10,10 @@
       "destination": "/api/product-page?slug=:slug"
     },
     {
+      "source": "/api/product-image",
+      "destination": "/api/product-image/index"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

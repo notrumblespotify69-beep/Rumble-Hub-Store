@@ -305,6 +305,11 @@ export default function Navbar() {
               )}
             </div>
           </div>
+          <div className="flex items-center justify-center gap-6 border-t border-zinc-800/50 py-2 text-sm md:hidden">
+            <Link to="/" className="text-zinc-300 hover:text-white font-medium transition-colors">Home</Link>
+            <Link to="/products" className="text-zinc-300 hover:text-white font-medium transition-colors">Products</Link>
+            <Link to="/feedback" className="text-zinc-300 hover:text-white font-medium transition-colors">Feedback</Link>
+          </div>
         </div>
       </nav>
 

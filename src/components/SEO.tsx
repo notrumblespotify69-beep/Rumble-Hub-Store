@@ -18,11 +18,14 @@ export default function SEO({
   type = "website",
   themeColor = "#4f46e5"
 }: SEOProps) {
-  const fullImageUrl = image.startsWith('/') && window.location.origin 
-    ? `${window.location.origin}${image}` 
-    : image;
-
   const currentUrl = url || window.location.href;
+  const currentPath = new URL(currentUrl).pathname;
+  const productSlug = currentPath.startsWith('/product/') ? currentPath.split('/product/')[1]?.split('/')[0] : '';
+  const fullImageUrl = image.startsWith('data:image/') && productSlug
+    ? `${window.location.origin}/api/product-image?slug=${encodeURIComponent(productSlug)}`
+    : image.startsWith('/') && window.location.origin 
+      ? `${window.location.origin}${image}` 
+      : image;
 
   return (
     <Helmet>

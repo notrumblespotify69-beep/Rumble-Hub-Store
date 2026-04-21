@@ -79,14 +79,21 @@ export default function ProductPage() {
           setSelectedVariantId(data.variants[0].id);
         }
 
-        // Fetch stock for all variants
-        const keysSnap = await getDocs(query(collection(db, 'keys'), where('productId', '==', data.id), where('isSold', '==', false)));
-        const counts: Record<string, number> = {};
-        keysSnap.docs.forEach(d => {
-          const vid = d.data().variantId;
-          counts[vid] = (counts[vid] || 0) + 1;
-        });
-        setStock(counts);
+        try {
+          // Public stock only needs unsold keys. Filtering productId in code avoids a required composite index.
+          const keysSnap = await getDocs(query(collection(db, 'keys'), where('isSold', '==', false)));
+          const counts: Record<string, number> = {};
+          keysSnap.docs.forEach(d => {
+            const key = d.data();
+            if (key.productId !== data.id) return;
+            const vid = key.variantId;
+            counts[vid] = (counts[vid] || 0) + 1;
+          });
+          setStock(counts);
+        } catch (stockError) {
+          console.error('Failed to load product stock:', stockError);
+          setStock({});
+        }
       }
       setLoading(false);
     };
@@ -189,24 +196,44 @@ export default function ProductPage() {
     const unsubReviews = onSnapshot(qReviews, (snap) => {
       dbReviews = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       combineAndSetReviews();
-    });
-
-    const qKeys = query(collection(db, 'keys'), where('productId', '==', product.id), where('isSold', '==', true));
-    const unsubKeys = onSnapshot(qKeys, (snap) => {
-      soldKeys = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }, (error) => {
+      console.error('Failed to load product reviews:', error);
+      dbReviews = [];
       combineAndSetReviews();
     });
 
+    let unsubKeys = () => {};
+    if (user) {
+      const qKeys = query(collection(db, 'keys'), where('productId', '==', product.id), where('ownerId', '==', user.uid));
+      unsubKeys = onSnapshot(qKeys, (snap) => {
+        soldKeys = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        combineAndSetReviews();
+      }, (error) => {
+        console.error('Failed to load owned keys for auto reviews:', error);
+        soldKeys = [];
+        combineAndSetReviews();
+      });
+    }
+
     if (user) {
       const checkOwnership = async () => {
-        const keysQ = query(collection(db, 'keys'), where('productId', '==', product.id), where('ownerId', '==', user.uid));
-        const keysSnap = await getDocs(keysQ);
-        if (!keysSnap.empty) {
-          const variants = Array.from(new Set(keysSnap.docs.map(d => d.data().variantName)));
-          setOwnedVariants(variants);
+        try {
+          const keysQ = query(collection(db, 'keys'), where('productId', '==', product.id), where('ownerId', '==', user.uid));
+          const keysSnap = await getDocs(keysQ);
+          if (!keysSnap.empty) {
+            const variants = Array.from(new Set(keysSnap.docs.map(d => d.data().variantName)));
+            setOwnedVariants(variants);
+          } else {
+            setOwnedVariants([]);
+          }
+        } catch (error) {
+          console.error('Failed to check product ownership:', error);
+          setOwnedVariants([]);
         }
       };
       checkOwnership();
+    } else {
+      setOwnedVariants([]);
     }
 
     return () => {
@@ -325,20 +352,20 @@ export default function ProductPage() {
       <Navbar />
       <Toast toast={toast} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-32">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-28 sm:py-8 sm:pt-32">
         <div className="mb-6">
           <Link to="/" className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors">
             <ArrowLeft className="w-4 h-4" /> Back to Store
           </Link>
         </div>
         
-        <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-8 uppercase">{product.title}</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight mb-6 sm:mb-8 uppercase">{product.title}</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           
           {/* Left Column: Image & Description */}
           <div className="lg:col-span-8 space-y-6">
-            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800/50 aspect-video relative">
+            <div className="rounded-xl sm:rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800/50 aspect-video relative">
               <img 
                 src={product.image} 
                 alt={product.title} 
@@ -348,10 +375,10 @@ export default function ProductPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
               <button 
                 onClick={() => setActiveTab('description')}
-                className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === 'description' ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
+                className={`shrink-0 px-5 sm:px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === 'description' ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
               >
                 Description
               </button>
@@ -359,20 +386,20 @@ export default function ProductPage() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(`custom-${tab.id}`)}
-                  className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === `custom-${tab.id}` ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
+                  className={`shrink-0 px-5 sm:px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === `custom-${tab.id}` ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
                 >
                   {tab.title || 'More Info'}
                 </button>
               ))}
               <button 
                 onClick={() => setActiveTab('reviews')}
-                className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === 'reviews' ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
+                className={`shrink-0 px-5 sm:px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === 'reviews' ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
               >
                 Reviews ({reviews.length})
               </button>
             </div>
 
-            <div className="bg-[#11141D] border border-zinc-800/50 rounded-xl p-6 min-h-[300px]">
+            <div className="bg-[#11141D] border border-zinc-800/50 rounded-xl p-4 sm:p-6 min-h-[300px]">
               {activeTab === 'description' ? (
                 <>
                   <div className="text-zinc-300 text-sm leading-relaxed prose prose-invert max-w-none">
@@ -527,7 +554,7 @@ export default function ProductPage() {
                 )}
                 <div className="text-xs text-zinc-500 mt-1">per unit</div>
               </div>
-              <div className={`text-sm font-medium ${isOutOfStock ? 'text-red-400' : 'text-zinc-300'}`}>
+              <div className={`text-right text-sm font-medium ${isOutOfStock ? 'text-red-400' : 'text-zinc-300'}`}>
                 {isOutOfStock ? 'Out of Stock' : `${currentStock} in stock`}
               </div>
             </div>
@@ -591,7 +618,7 @@ export default function ProductPage() {
               </div>
 
               {/* Actions */}
-              <div className="mt-6 flex gap-3">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <button 
                   onClick={handleAddToCart}
                   disabled={isOutOfStock || buying}
