@@ -151,7 +151,7 @@ export default function AdminAnnouncements() {
               onChange={e => setLoopDuration(Number(e.target.value))}
               className="w-full accent-indigo-500"
             />
-            <div className="text-xs text-slate-500 mt-1">{loopDuration}s per loop. Higher is slower.</div>
+            <div className="text-xs text-slate-500 mt-1">{loopDuration}s to travel across the screen. Higher is slower.</div>
           </div>
         </div>
 
@@ -179,12 +179,16 @@ export default function AdminAnnouncements() {
             style={{ backgroundColor, color: textColor }}
           >
             <div className="h-9 whitespace-nowrap">
-              <div
-                className="flex h-9 w-max items-center gap-16 text-sm font-medium animate-marquee-ltr"
-                style={{ '--marquee-duration': `${loopDuration}s` } as React.CSSProperties}
-              >
-                {Array.from({ length: Math.max(1, loopMessages) }).map((_, index) => (
-                  <span key={index} className="inline-flex items-center gap-3 px-4">
+              <div className="relative h-9 overflow-hidden text-sm font-medium">
+                {Array.from({ length: Math.max(1, loopMessages) }).map((_, index, items) => (
+                  <span
+                    key={index}
+                    className="absolute left-0 top-0 inline-flex h-9 items-center gap-3 px-4 animate-marquee-ltr"
+                    style={{
+                      '--marquee-duration': `${loopDuration}s`,
+                      animationDelay: `-${(loopDuration / items.length) * index}s`
+                    } as React.CSSProperties}
+                  >
                     <span>{message || 'Your announcement message will appear here.'}</span>
                     {linkText && linkUrl && <span className="underline decoration-current/50 underline-offset-4">{linkText}</span>}
                   </span>
