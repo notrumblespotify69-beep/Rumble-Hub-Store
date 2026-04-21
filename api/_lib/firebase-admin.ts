@@ -1,4 +1,4 @@
-import { applicationDefault, cert, getApps, initializeApp } from 'firebase-admin/app';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 function getServiceAccount() {
@@ -6,14 +6,14 @@ function getServiceAccount() {
   const base64Json = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
 
   if (rawJson) {
-    return JSON.parse(rawJson.replace(/\\n/g, '\n'));
+    return JSON.parse(rawJson);
   }
 
   if (base64Json) {
     return JSON.parse(Buffer.from(base64Json, 'base64').toString('utf8'));
   }
 
-  return null;
+  throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY is not set in Vercel Environment Variables.');
 }
 
 function getFirebaseAdminApp() {
@@ -22,11 +22,11 @@ function getFirebaseAdminApp() {
     return existingApp;
   }
 
-  const serviceAccount = getServiceAccount();
-
   return initializeApp({
-    credential: serviceAccount ? cert(serviceAccount) : applicationDefault()
+    credential: cert(getServiceAccount())
   });
 }
 
-export const adminDb = getFirestore(getFirebaseAdminApp());
+export function getAdminDb() {
+  return getFirestore(getFirebaseAdminApp());
+}

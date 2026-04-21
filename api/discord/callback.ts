@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { adminDb } from '../_lib/firebase-admin';
+import { getAdminDb } from '../_lib/firebase-admin';
 import { ApiRequest, ApiResponse, getQueryValue, getRequestOrigin } from '../_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -19,7 +19,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   try {
-    const settingsSnap = await adminDb.collection('settings').doc('discord').get();
+    const settingsSnap = await getAdminDb().collection('settings').doc('discord').get();
     const settings = settingsSnap.data();
 
     if (!settings?.appId || !settings?.clientSecret) {

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { adminDb } from '../_lib/firebase-admin';
+import { getAdminDb } from '../_lib/firebase-admin';
 import { ApiRequest, ApiResponse } from '../_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -18,9 +18,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
+    const db = getAdminDb();
     const [settingsSnap, userSnap] = await Promise.all([
-      adminDb.collection('settings').doc('discord').get(),
-      adminDb.collection('users').doc(userId).get()
+      db.collection('settings').doc('discord').get(),
+      db.collection('users').doc(userId).get()
     ]);
 
     const settings = settingsSnap.data();
