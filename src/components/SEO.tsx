@@ -11,8 +11,8 @@ interface SEOProps {
 }
 
 export default function SEO({ 
-  title = "Rumble Hub | Premium Gaming Access", 
-  description = "Elevate your gameplay. Get premium access and unlock your potential with our top-tier gaming products.", 
+  title = "Rumble Hub | Digital Store", 
+  description = "Browse Rumble Hub products, reviews, and customer support.", 
   image = "/background.png", 
   url,
   type = "website",

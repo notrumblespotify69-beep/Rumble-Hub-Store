@@ -1,9 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Grip, Image as ImageIcon } from 'lucide-react';
 import ImageCropper from '../../components/ImageCropper';
 import SEO from '../../components/SEO';
+
+type ProductImage = {
+  id: string;
+  url: string;
+  width: number;
+  x: number;
+  y: number;
+};
+
+type ProductCustomTab = {
+  id: string;
+  title: string;
+  content: string;
+  images: ProductImage[];
+};
+
+const makeId = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+const makeProductImage = (url = ''): ProductImage => ({
+  id: makeId('image'),
+  url,
+  width: 45,
+  x: 50,
+  y: 140
+});
+
+const makeCustomTab = (): ProductCustomTab => ({
+  id: makeId('tab'),
+  title: '',
+  content: '',
+  images: []
+});
+
+const normalizeCustomTabs = (tabs: any[] = []): ProductCustomTab[] => (
+  Array.isArray(tabs)
+    ? tabs.slice(0, 5).map(tab => ({
+      id: tab.id || makeId('tab'),
+      title: tab.title || '',
+      content: tab.content || '',
+      images: Array.isArray(tab.images) ? tab.images : []
+    }))
+    : []
+);
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<any[]>([]);
@@ -16,6 +59,7 @@ export default function AdminProducts() {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
   const [upsellProductIds, setUpsellProductIds] = useState<string[]>([]);
+  const [customTabs, setCustomTabs] = useState<ProductCustomTab[]>([]);
   const [variants, setVariants] = useState<{id: string, name: string, price: number}[]>([
     { id: 'v1', name: 'Standard', price: 10 }
   ]);
@@ -39,6 +83,7 @@ export default function AdminProducts() {
     setDescription('');
     setImage('');
     setUpsellProductIds([]);
+    setCustomTabs([]);
     setVariants([{ id: 'v1', name: 'Standard', price: 10 }]);
   };
 
@@ -48,14 +93,52 @@ export default function AdminProducts() {
     setDescription(p.description);
     setImage(p.image);
     setUpsellProductIds(p.upsellProductIds || []);
+    setCustomTabs(normalizeCustomTabs(p.customTabs));
     setVariants(p.variants || []);
+  };
+
+  const updateCustomTab = (tabId: string, patch: Partial<ProductCustomTab>) => {
+    setCustomTabs(tabs => tabs.map(tab => tab.id === tabId ? { ...tab, ...patch } : tab));
+  };
+
+  const updateCustomTabImage = (tabId: string, imageId: string, patch: Partial<ProductImage>) => {
+    setCustomTabs(tabs => tabs.map(tab => (
+      tab.id === tabId
+        ? { ...tab, images: tab.images.map(image => image.id === imageId ? { ...image, ...patch } : image) }
+        : tab
+    )));
+  };
+
+  const addCustomTabImage = (tabId: string, url: string) => {
+    setCustomTabs(tabs => tabs.map(tab => (
+      tab.id === tabId
+        ? { ...tab, images: [...tab.images, makeProductImage(url)] }
+        : tab
+    )));
+  };
+
+  const removeCustomTabImage = (tabId: string, imageId: string) => {
+    setCustomTabs(tabs => tabs.map(tab => (
+      tab.id === tabId
+        ? { ...tab, images: tab.images.filter(image => image.id !== imageId) }
+        : tab
+    )));
   };
 
   const handleSave = async () => {
     if (!title || !image || variants.length === 0) return showToast("Title, image, and at least 1 variant are required.", "error");
 
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    const data = { title, description, image, variants, slug, upsellProductIds };
+    const cleanedTabs = customTabs
+      .map(tab => ({
+        ...tab,
+        title: tab.title.trim(),
+        content: tab.content.trim(),
+        images: tab.images.filter(image => image.url)
+      }))
+      .filter(tab => tab.title || tab.content || tab.images.length > 0)
+      .slice(0, 5);
+    const data = { title, description, image, variants, slug, upsellProductIds, customTabs: cleanedTabs };
 
     try {
       if (editingId) {
@@ -143,6 +226,166 @@ export default function AdminProducts() {
               onImageCropped={(url) => setImage(url)} 
               aspectRatio={16/9}
             />
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-[#0f172a] p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <div>
+                <label className="block text-sm font-semibold text-white">Custom Product Buttons</label>
+                <p className="text-xs text-slate-500 mt-1">Create up to 5 extra tabs shown between Description and Reviews.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCustomTabs(tabs => tabs.length >= 5 ? tabs : [...tabs, makeCustomTab()])}
+                disabled={customTabs.length >= 5}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-500/30 px-3 py-2 text-sm font-medium text-indigo-300 transition-colors hover:bg-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Plus className="w-4 h-4" />
+                Add Button
+              </button>
+            </div>
+
+            {customTabs.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-slate-800 p-5 text-center text-sm text-slate-500">
+                No custom buttons yet.
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {customTabs.map((tab, tabIndex) => (
+                  <div key={tab.id} className="rounded-xl border border-slate-800 bg-[#111827] p-4">
+                    <div className="mb-4 flex items-center justify-between gap-3">
+                      <div className="text-sm font-semibold text-white">Button {tabIndex + 1}</div>
+                      <button
+                        type="button"
+                        onClick={() => setCustomTabs(tabs => tabs.filter(item => item.id !== tab.id))}
+                        className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"
+                        title="Remove button"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">Button Name</label>
+                        <input
+                          value={tab.title}
+                          onChange={e => updateCustomTab(tab.id, { title: e.target.value })}
+                          placeholder="Setup, Features, FAQ..."
+                          className="w-full bg-[#0f172a] border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">Content</label>
+                        <textarea
+                          value={tab.content}
+                          onChange={e => updateCustomTab(tab.id, { content: e.target.value })}
+                          className="min-h-36 w-full resize-y rounded-lg border border-slate-800 bg-[#0f172a] p-3 font-mono text-sm text-white outline-none transition-colors focus:border-indigo-500"
+                          placeholder="Write text for this button. Line breaks are preserved."
+                        />
+                      </div>
+
+                      <div className="rounded-xl border border-slate-800 bg-[#0f172a] p-4">
+                        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white">
+                          <ImageIcon className="w-4 h-4 text-indigo-400" />
+                          Images
+                        </div>
+                        <ImageCropper
+                          currentImage=""
+                          onImageCropped={url => addCustomTabImage(tab.id, url)}
+                          aspectRatio={16 / 9}
+                        />
+
+                        {tab.images.length > 0 && (
+                          <div className="mt-4 space-y-4">
+                            {tab.images.map((image, imageIndex) => (
+                              <div key={image.id} className="rounded-lg border border-slate-800 bg-[#111827] p-3">
+                                <div className="mb-3 flex items-center justify-between">
+                                  <div className="text-xs font-semibold text-slate-300">Image {imageIndex + 1}</div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeCustomTabImage(tab.id, image.id)}
+                                    className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"
+                                    title="Remove image"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                                <label className="text-xs font-medium text-slate-400">
+                                  Size: {image.width}%
+                                  <input
+                                    type="range"
+                                    min="10"
+                                    max="100"
+                                    value={image.width}
+                                    onChange={e => updateCustomTabImage(tab.id, image.id, { width: Number(e.target.value) })}
+                                    className="mt-2 w-full accent-indigo-500"
+                                  />
+                                </label>
+                                <div className="mt-3 grid grid-cols-2 gap-3">
+                                  <label className="text-xs font-medium text-slate-400">
+                                    X: {image.x}%
+                                    <input type="number" value={image.x} onChange={e => updateCustomTabImage(tab.id, image.id, { x: Number(e.target.value) })} className="mt-1 w-full rounded border border-slate-800 bg-[#0f172a] px-2 py-1 text-white" />
+                                  </label>
+                                  <label className="text-xs font-medium text-slate-400">
+                                    Y: {image.y}px
+                                    <input type="number" value={image.y} onChange={e => updateCustomTabImage(tab.id, image.id, { y: Number(e.target.value) })} className="mt-1 w-full rounded border border-slate-800 bg-[#0f172a] px-2 py-1 text-white" />
+                                  </label>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div data-product-tab-preview={tab.id} className="relative min-h-72 overflow-hidden rounded-lg border border-slate-800 bg-[#0b1020] p-5">
+                        <div className="mb-4 text-xs uppercase tracking-wider text-slate-500">Preview</div>
+                        <div className="whitespace-pre-wrap break-words text-sm leading-6 text-slate-300">
+                          {tab.content || 'Text for this button will appear here.'}
+                        </div>
+                        {tab.images.map(image => (
+                          image.url ? (
+                            <div
+                              key={image.id}
+                              className="absolute select-none"
+                              style={{
+                                width: `${image.width}%`,
+                                left: `${image.x}%`,
+                                top: `${image.y}px`,
+                                transform: 'translate(-50%, -50%)'
+                              }}
+                            >
+                              <img src={image.url} alt="" draggable={false} className="pointer-events-none w-full select-none rounded-lg border border-slate-800 object-contain shadow-2xl" />
+                              <button
+                                type="button"
+                                className="absolute -right-3 -top-3 z-10 flex h-8 w-8 cursor-grab items-center justify-center rounded-full border border-indigo-400/50 bg-indigo-600 text-white shadow-lg active:cursor-grabbing"
+                                title="Drag image"
+                                onPointerMove={e => {
+                                  if (e.buttons !== 1) return;
+                                  const preview = e.currentTarget.closest('[data-product-tab-preview]') as HTMLElement | null;
+                                  if (!preview) return;
+                                  const rect = preview.getBoundingClientRect();
+                                  const nextX = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+                                  const nextY = Math.max(0, e.clientY - rect.top);
+                                  updateCustomTabImage(tab.id, image.id, { x: Math.round(nextX), y: Math.round(nextY) });
+                                }}
+                                onPointerDown={e => {
+                                  e.preventDefault();
+                                  e.currentTarget.setPointerCapture(e.pointerId);
+                                }}
+                              >
+                                <Grip className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ) : null
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

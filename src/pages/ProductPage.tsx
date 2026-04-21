@@ -16,6 +16,14 @@ function Toast({ toast }: { toast: {message: string, type: string} | null }) {
   );
 }
 
+const getCustomTabs = (product: any) => (
+  Array.isArray(product?.customTabs)
+    ? product.customTabs
+      .filter((tab: any) => tab?.title || tab?.content || tab?.images?.length)
+      .slice(0, 5)
+    : []
+);
+
 import SEO from '../components/SEO';
 
 export default function ProductPage() {
@@ -27,7 +35,7 @@ export default function ProductPage() {
   const [stock, setStock] = useState<Record<string, number>>({});
   const [buying, setBuying] = useState(false);
   const [viewers, setViewers] = useState(1);
-  const [activeTab, setActiveTab] = useState<'description' | 'reviews'>('description');
+  const [activeTab, setActiveTab] = useState('description');
   const [quantity, setQuantity] = useState(1);
   const [upsells, setUpsells] = useState<any[]>([]);
   const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null);
@@ -304,6 +312,8 @@ export default function ProductPage() {
   const selectedVariant = product.variants?.find((v: any) => v.id === selectedVariantId);
   const currentStock = stock[selectedVariantId] || 0;
   const isOutOfStock = currentStock === 0;
+  const customTabs = getCustomTabs(product);
+  const activeCustomTab = customTabs.find((tab: any) => activeTab === `custom-${tab.id}`);
 
   return (
     <div className="w-full pb-20">
@@ -338,13 +348,22 @@ export default function ProductPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button 
                 onClick={() => setActiveTab('description')}
                 className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === 'description' ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
               >
                 Description
               </button>
+              {customTabs.map((tab: any) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(`custom-${tab.id}`)}
+                  className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === `custom-${tab.id}` ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
+                >
+                  {tab.title || 'More Info'}
+                </button>
+              ))}
               <button 
                 onClick={() => setActiveTab('reviews')}
                 className={`px-6 py-2 rounded-lg font-medium text-sm transition-colors border ${activeTab === 'reviews' ? 'bg-zinc-800/80 text-white border-zinc-700' : 'bg-transparent text-zinc-400 hover:text-white border-transparent'}`}
@@ -356,11 +375,33 @@ export default function ProductPage() {
             <div className="bg-[#11141D] border border-zinc-800/50 rounded-xl p-6 min-h-[300px]">
               {activeTab === 'description' ? (
                 <>
-                  <h3 className="font-bold text-lg mb-4 uppercase">{product.title} – PREMIUM ACCESS</h3>
                   <div className="text-zinc-300 text-sm leading-relaxed prose prose-invert max-w-none">
-                    <Markdown>{product.description || "Enhance your experience with this premium product. Designed with efficiency in mind, providing a smooth and consistent experience."}</Markdown>
+                    {product.description ? <Markdown>{product.description}</Markdown> : <p className="text-zinc-500 italic">No description yet.</p>}
                   </div>
                 </>
+              ) : activeCustomTab ? (
+                <div className="relative min-h-[300px] overflow-hidden">
+                  <h3 className="font-bold text-lg mb-4 uppercase">{activeCustomTab.title || 'More Info'}</h3>
+                  <div className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">
+                    {activeCustomTab.content || 'No content yet.'}
+                  </div>
+                  {(activeCustomTab.images || []).map((image: any) => (
+                    image.url ? (
+                      <div
+                        key={image.id}
+                        className="absolute select-none"
+                        style={{
+                          width: `${image.width || 45}%`,
+                          left: `${image.x ?? 50}%`,
+                          top: `${image.y ?? 140}px`,
+                          transform: 'translate(-50%, -50%)'
+                        }}
+                      >
+                        <img src={image.url} alt="" draggable={false} className="pointer-events-none w-full select-none rounded-lg border border-zinc-800 object-contain shadow-2xl" />
+                      </div>
+                    ) : null
+                  ))}
+                </div>
               ) : (
                 <div className="space-y-6">
                   <h3 className="font-bold text-lg uppercase">Customer Reviews</h3>

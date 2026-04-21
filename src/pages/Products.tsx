@@ -63,7 +63,7 @@ export default function Products() {
 
   return (
     <div className="w-full">
-      <SEO title="Products | Rumble Hub" description="Browse all our premium products and find the right one for you." />
+      <SEO title="Products | Rumble Hub" description="Browse all products and find the right one for you." />
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 pt-32">
@@ -186,7 +186,7 @@ export default function Products() {
                       </div>
                       <div className="p-5 flex flex-col flex-1">
                         <h3 className="font-bold text-lg mb-1 group-hover:text-indigo-400 transition-colors line-clamp-1">{game.title}</h3>
-                        <p className="text-xs text-zinc-500 mb-4 line-clamp-2">{game.description || "Premium access key"}</p>
+                        <p className="text-xs text-zinc-500 mb-4 line-clamp-2">{game.description || 'View product details.'}</p>
                         
                         <div className="mt-auto flex items-end justify-between">
                           <div className="flex flex-col">

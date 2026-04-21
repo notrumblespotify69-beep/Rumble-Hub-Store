@@ -148,7 +148,7 @@ export default function Storefront() {
                       <h3 className="font-bold text-lg mb-1 group-hover:text-indigo-400 transition-colors line-clamp-1">
                         {game.title}
                       </h3>
-                      <p className="text-xs text-zinc-500 mb-4 line-clamp-2">{game.description || 'Premium access key'}</p>
+                      <p className="text-xs text-zinc-500 mb-4 line-clamp-2">{game.description || 'View product details.'}</p>
 
                       <div className="mt-auto flex items-end justify-between">
                         <div className="flex flex-col">
