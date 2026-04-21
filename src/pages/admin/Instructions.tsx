@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { collection, doc, getDocs, updateDoc } from 'firebase/firestore';
-import { BookOpen, Check, Search, Save } from 'lucide-react';
-import Markdown from 'react-markdown';
+import { BookOpen, Check, Image as ImageIcon, Search, Save, Trash2 } from 'lucide-react';
 import { db } from '../../firebase';
 import SEO from '../../components/SEO';
+import ImageCropper from '../../components/ImageCropper';
+
+const defaultInstructionImage = { url: '', width: 70, x: 50, y: 0 };
 
 export default function AdminInstructions() {
   const [products, setProducts] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [instructionImage, setInstructionImage] = useState(defaultInstructionImage);
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -33,6 +36,7 @@ export default function AdminInstructions() {
       if (list[0]) {
         setSelectedId(list[0].id);
         setInstructions(list[0].instructions || '');
+        setInstructionImage({ ...defaultInstructionImage, ...(list[0].instructionImage || {}) });
       }
     };
     fetchProducts();
@@ -41,6 +45,7 @@ export default function AdminInstructions() {
   const handleSelectProduct = (product: any) => {
     setSelectedId(product.id);
     setInstructions(product.instructions || '');
+    setInstructionImage({ ...defaultInstructionImage, ...(product.instructionImage || {}) });
   };
 
   const handleSave = async () => {
@@ -49,10 +54,11 @@ export default function AdminInstructions() {
     try {
       await updateDoc(doc(db, 'products', selectedProduct.id), {
         instructions,
+        instructionImage,
         updatedAt: Date.now()
       });
       setProducts(products.map(product => (
-        product.id === selectedProduct.id ? { ...product, instructions } : product
+        product.id === selectedProduct.id ? { ...product, instructions, instructionImage } : product
       )));
       showToast('Instructions saved.');
     } catch (error) {
@@ -151,16 +157,103 @@ export default function AdminInstructions() {
               className="min-h-[520px] w-full resize-y rounded-lg border border-slate-800 bg-[#0f172a] p-4 font-mono text-sm text-white outline-none transition-colors focus:border-indigo-500"
               placeholder="Setup guide, Discord steps, redemption notes, links..."
             />
-            <p className="mt-3 text-xs text-slate-500">Markdown is supported. This text is also included in the downloaded .txt file.</p>
+            <p className="mt-3 text-xs text-slate-500">Line breaks are preserved exactly as written. This text is also included in the downloadable .txt file.</p>
+
+            <div className="mt-6 rounded-xl border border-slate-800 bg-[#0f172a] p-4">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                  <ImageIcon className="w-4 h-4 text-indigo-400" />
+                  Instruction Image
+                </div>
+                {instructionImage.url && (
+                  <button
+                    onClick={() => setInstructionImage(defaultInstructionImage)}
+                    className="rounded-lg p-2 text-red-400 hover:bg-red-500/10"
+                    title="Remove image"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              <ImageCropper
+                currentImage={instructionImage.url}
+                onImageCropped={url => setInstructionImage(current => ({ ...current, url }))}
+                aspectRatio={16 / 9}
+              />
+              {instructionImage.url && (
+                <div className="mt-4 grid grid-cols-1 gap-4">
+                  <label className="text-xs font-medium text-slate-400">
+                    Size: {instructionImage.width}%
+                    <input
+                      type="range"
+                      min="25"
+                      max="100"
+                      value={instructionImage.width}
+                      onChange={e => setInstructionImage(current => ({ ...current, width: Number(e.target.value) }))}
+                      className="mt-2 w-full accent-indigo-500"
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-slate-400">
+                    Horizontal Position: {instructionImage.x}%
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={instructionImage.x}
+                      onChange={e => setInstructionImage(current => ({ ...current, x: Number(e.target.value) }))}
+                      className="mt-2 w-full accent-indigo-500"
+                    />
+                  </label>
+                  <label className="text-xs font-medium text-slate-400">
+                    Top Spacing: {instructionImage.y}px
+                    <input
+                      type="range"
+                      min="0"
+                      max="80"
+                      value={instructionImage.y}
+                      onChange={e => setInstructionImage(current => ({ ...current, y: Number(e.target.value) }))}
+                      className="mt-2 w-full accent-indigo-500"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="bg-[#1e293b] border border-slate-800 rounded-xl p-5">
             <div className="mb-3 text-sm font-semibold text-white">Customer Preview</div>
             <div className="min-h-[520px] rounded-lg border border-slate-800 bg-[#0f172a] p-5">
               <div className="text-xs uppercase tracking-wider text-slate-500 mb-4">Instructions</div>
-              <div className="prose prose-invert max-w-none text-sm text-slate-300">
-                <Markdown>{instructions || 'No special instructions were added for this product.'}</Markdown>
+              <div className="whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-300">
+                {instructions || 'No special instructions were added for this product.'}
               </div>
+              {instructionImage.url && (
+                <div
+                  className="relative mt-5 min-h-[120px]"
+                  style={{ paddingTop: `${instructionImage.y}px` }}
+                >
+                  <img
+                    src={instructionImage.url}
+                    alt="Instruction"
+                    className="cursor-move rounded-lg border border-slate-800 object-contain"
+                    onPointerMove={e => {
+                      if (e.buttons !== 1) return;
+                      const parent = e.currentTarget.parentElement;
+                      if (!parent) return;
+                      const rect = parent.getBoundingClientRect();
+                      const nextX = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+                      const nextY = Math.min(80, Math.max(0, e.clientY - rect.top));
+                      setInstructionImage(current => ({ ...current, x: Math.round(nextX), y: Math.round(nextY) }));
+                    }}
+                    onPointerDown={e => e.currentTarget.setPointerCapture(e.pointerId)}
+                    style={{
+                      width: `${instructionImage.width}%`,
+                      marginLeft: `${instructionImage.x}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </section>

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import { Check, ChevronDown, Copy, Download, ExternalLink, Star, Ticket } from 'lucide-react';
-import Markdown from 'react-markdown';
 import { db } from '../firebase';
 import { useAuth } from '../AuthContext';
 import SEO from '../components/SEO';
@@ -279,9 +278,23 @@ export default function OrderComplete() {
                         <div className="px-5 pb-5">
                           <div className="pt-4 border-t border-zinc-800">
                             <div className="text-xs uppercase tracking-wider text-zinc-500 mb-3">Instructions</div>
-                            <div className="prose prose-invert max-w-none text-sm text-zinc-300 mb-6">
-                              <Markdown>{item.instructions || 'No special instructions were added for this product.'}</Markdown>
+                            <div className="mb-6 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">
+                              {item.instructions || 'No special instructions were added for this product.'}
                             </div>
+                            {item.instructionImage?.url && (
+                              <div className="relative mb-6 min-h-[120px]" style={{ paddingTop: `${item.instructionImage.y || 0}px` }}>
+                                <img
+                                  src={item.instructionImage.url}
+                                  alt="Instruction"
+                                  className="rounded-lg border border-zinc-800 object-contain"
+                                  style={{
+                                    width: `${item.instructionImage.width || 70}%`,
+                                    marginLeft: `${item.instructionImage.x ?? 50}%`,
+                                    transform: 'translateX(-50%)'
+                                  }}
+                                />
+                              </div>
+                            )}
 
                             <div className="flex items-center justify-between mb-3">
                               <div className="text-xs uppercase tracking-wider text-zinc-500">Deliverables</div>

@@ -945,6 +945,20 @@ function PurchasesTab({ user, profile, setActiveTab }: { user: any, profile: any
                   {k.instructions}
                 </div>
               )}
+              {k.instructionImage?.url && (
+                <div className="relative min-h-[120px] rounded-lg border border-zinc-800 bg-black/20 p-4" style={{ paddingTop: `${(k.instructionImage.y || 0) + 16}px` }}>
+                  <img
+                    src={k.instructionImage.url}
+                    alt="Instruction"
+                    className="rounded-lg border border-zinc-800 object-contain"
+                    style={{
+                      width: `${k.instructionImage.width || 70}%`,
+                      marginLeft: `${k.instructionImage.x ?? 50}%`,
+                      transform: 'translateX(-50%)'
+                    }}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

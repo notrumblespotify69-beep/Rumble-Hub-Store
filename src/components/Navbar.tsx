@@ -184,13 +184,17 @@ export default function Navbar() {
       {announcement && (
         <div className="relative z-40 overflow-hidden border-b border-indigo-500/20 bg-indigo-600 text-white">
           <div className="h-9 whitespace-nowrap">
-            <div className="inline-flex h-9 min-w-full items-center gap-3 px-4 text-sm font-medium animate-marquee-ltr">
-              <span>{announcement.message}</span>
-              {announcement.linkText && announcement.linkUrl && (
-                <a href={announcement.linkUrl} target="_blank" rel="noreferrer" className="underline decoration-white/50 underline-offset-4 hover:decoration-white">
-                  {announcement.linkText}
-                </a>
-              )}
+            <div className="flex h-9 w-max items-center gap-16 text-sm font-medium animate-marquee-ltr">
+              {[0, 1, 2, 3, 4, 5].map(index => (
+                <span key={index} className="inline-flex items-center gap-3 px-4">
+                  <span>{announcement.message}</span>
+                  {announcement.linkText && announcement.linkUrl && (
+                    <a href={announcement.linkUrl} target="_blank" rel="noreferrer" className="underline decoration-white/50 underline-offset-4 hover:decoration-white">
+                      {announcement.linkText}
+                    </a>
+                  )}
+                </span>
+              ))}
             </div>
           </div>
         </div>
