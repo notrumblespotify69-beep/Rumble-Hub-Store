@@ -135,7 +135,7 @@ app.get('/api/discord/auth-url', async (req, res) => {
     const state = req.query.uid;
     const redirectUri = `${req.protocol}://${req.get('host')}/api/discord/callback`;
     const url = `https://discord.com/api/oauth2/authorize?client_id=${data.appId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=identify%20guilds.join&state=${state}`;
-    res.json({ url });
+    res.redirect(url);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -194,9 +194,9 @@ app.post('/api/discord/give-role', async (req, res) => {
     // Check discord settings
     const docSnap = await getDoc(doc(db, 'settings', 'discord'));
     const data = docSnap.data();
-    if (!data?.token) {
-       console.log("No discord bot token configured, skipping role.");
-       return res.json({ success: false, reason: "No token" });
+    if (!data?.token || !data?.guildId || !data?.roleId) {
+       console.log("Discord bot token, guild ID, or role ID is not configured.");
+       return res.status(400).json({ success: false, reason: "Discord settings incomplete" });
     }
 
     const userSnap = await getDoc(doc(db, 'users', userId));
@@ -205,12 +205,9 @@ app.post('/api/discord/give-role', async (req, res) => {
         return res.json({ success: false, reason: "User has no linked discord" });
     }
 
-    const guildId = "1408959753127854213";
-    const roleId = "1439013680577646814";
-
     // Add member to guild
     try {
-      await axios.put(`https://discord.com/api/guilds/${guildId}/members/${userData.discordId}`, {
+      await axios.put(`https://discord.com/api/guilds/${data.guildId}/members/${userData.discordId}`, {
         access_token: userData.discordAccessToken
       }, {
         headers: { 'Authorization': `Bot ${data.token}`, 'Content-Type': 'application/json' }
@@ -221,7 +218,7 @@ app.post('/api/discord/give-role', async (req, res) => {
     
     // Give Role
     try {
-      await axios.put(`https://discord.com/api/guilds/${guildId}/members/${userData.discordId}/roles/${roleId}`, {}, {
+      await axios.put(`https://discord.com/api/guilds/${data.guildId}/members/${userData.discordId}/roles/${data.roleId}`, {}, {
          headers: { 'Authorization': `Bot ${data.token}` }
       });
     } catch(e:any) {

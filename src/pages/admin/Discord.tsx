@@ -7,6 +7,8 @@ export default function AdminDiscord() {
   const [token, setToken] = useState('');
   const [appId, setAppId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+  const [guildId, setGuildId] = useState('');
+  const [roleId, setRoleId] = useState('');
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null);
 
@@ -24,6 +26,8 @@ export default function AdminDiscord() {
           setToken(data.token || '');
           setAppId(data.appId || '');
           setClientSecret(data.clientSecret || '');
+          setGuildId(data.guildId || '');
+          setRoleId(data.roleId || '');
         }
       } catch (e) {
         console.error(e);
@@ -40,6 +44,8 @@ export default function AdminDiscord() {
         token,
         appId,
         clientSecret,
+        guildId,
+        roleId,
         updatedAt: Date.now()
       }, { merge: true });
       showToast('Discord settings saved successfully!');
@@ -97,6 +103,28 @@ export default function AdminDiscord() {
             onChange={e => setClientSecret(e.target.value)}
             className="w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
             placeholder="Enter your Client Secret"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Server ID</label>
+          <input
+            type="text"
+            value={guildId}
+            onChange={e => setGuildId(e.target.value)}
+            className="w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+            placeholder="Enter your Discord Server ID"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">Customer Role ID</label>
+          <input
+            type="text"
+            value={roleId}
+            onChange={e => setRoleId(e.target.value)}
+            className="w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+            placeholder="Enter the role ID to assign after purchase"
           />
         </div>
 

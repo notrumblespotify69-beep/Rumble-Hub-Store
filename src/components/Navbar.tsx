@@ -26,7 +26,42 @@ export default function Navbar() {
 
   const showToast = (message: string, type: 'success'|'error' = 'success') => {
     setToast({message, type});
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 5000);
+  };
+
+  const getSignInErrorMessage = (error: unknown) => {
+    const code = typeof error === 'object' && error && 'code' in error ? String((error as { code?: string }).code) : '';
+
+    if (code === 'auth/unauthorized-domain') {
+      return 'This domain is not allowed in Firebase Authentication settings.';
+    }
+
+    if (code === 'auth/popup-blocked') {
+      return 'The sign-in popup was blocked by your browser.';
+    }
+
+    if (code === 'auth/popup-closed-by-user') {
+      return 'The sign-in popup was closed before login finished.';
+    }
+
+    if (code === 'auth/operation-not-allowed') {
+      return 'Google sign-in is not enabled in Firebase Authentication.';
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return 'Sign in failed. Check Firebase Authentication settings.';
+  };
+
+  const handleLogin = async () => {
+    try {
+      await login();
+    } catch (error) {
+      console.error('Sign in failed:', error);
+      showToast(getSignInErrorMessage(error), 'error');
+    }
   };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -203,7 +238,7 @@ export default function Navbar() {
                 </>
               ) : (
                 <button 
-                  onClick={login}
+                  onClick={handleLogin}
                   className="bg-[#5A4BFF] hover:bg-[#4a3be0] text-white px-6 py-2 rounded-lg font-medium transition-colors"
                 >
                   Sign In
