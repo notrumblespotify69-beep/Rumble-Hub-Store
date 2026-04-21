@@ -34,7 +34,7 @@
         linear-gradient(180deg, rgba(11, 14, 20, 0.08) 0%, rgba(11, 14, 20, 0.28) 58%, #0B0E14 100%),
         url('/background.png');
       background-position: center top;
-      background-size: auto 100%;
+      background-size: cover;
     }
 
     .store-hero-bg {
@@ -43,19 +43,19 @@
         radial-gradient(circle at 50% 12%, rgba(99, 102, 241, 0.28), transparent 18rem),
         url('/background.png');
       background-position: center top;
-      background-size: auto 100%;
+      background-size: cover;
     }
   }
 
   @media (min-width: 1600px) {
     .classic-hero-bg {
-      background-size: min(100vw, 1920px) auto;
+      background-size: cover;
       background-position: center top;
       background-color: #0B0E14;
     }
 
     .store-hero-bg {
-      background-size: min(100vw, 1920px) auto;
+      background-size: cover;
       background-position: center top;
       background-color: #0B0E14;
     }

@@ -19,6 +19,7 @@ export default function Storefront() {
   });
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
   const [theme, setTheme] = useState('classic');
+  const [homeStyle, setHomeStyle] = useState('image');
   const heroBgClass =
     theme === 'classic' ? 'classic-hero-bg' :
     theme === 'pulse' ? 'pulse-hero-bg' :
@@ -37,7 +38,15 @@ export default function Storefront() {
     theme === 'midnight' ? 'midnight-hero-bg' :
     theme === 'daylight' ? 'daylight-hero-bg' :
     'store-hero-bg';
-  const centeredHero = theme === 'minimal' || theme === 'aurora' || theme === 'monolith' || theme === 'frost' || theme === 'sakura' || theme === 'daylight';
+  const centeredHero =
+    homeStyle === 'centered' ||
+    homeStyle === 'showcase' ||
+    theme === 'minimal' ||
+    theme === 'aurora' ||
+    theme === 'monolith' ||
+    theme === 'frost' ||
+    theme === 'sakura' ||
+    theme === 'daylight';
   const heroEyebrow =
     theme === 'pulse' ? 'Live Storefront' :
     theme === 'vault' ? 'Secured Digital Vault' :
@@ -80,7 +89,9 @@ export default function Storefront() {
         const prods = productsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
         setProducts(prods);
         if (themeSnap.exists()) {
-          setTheme(themeSnap.data().themeId || 'classic');
+          const themeData = themeSnap.data();
+          setTheme(themeData.themeId || 'classic');
+          setHomeStyle(themeData.homeStyle || 'image');
         }
 
         const keysSnap = await getDocs(query(collection(db, 'keys'), where('isSold', '==', false)));
@@ -126,6 +137,27 @@ export default function Storefront() {
     fetchData();
   }, []);
 
+  const featuredProduct = products[0];
+  const shouldShowHero = homeStyle !== 'image';
+  const heroSectionClass =
+    homeStyle === 'compact'
+      ? 'flex min-h-[360px] items-end pb-8 pt-20 sm:min-h-[440px] sm:pb-12'
+      : homeStyle === 'poster'
+        ? 'flex min-h-[590px] items-end pb-12 pt-24 sm:min-h-[700px] sm:pb-16 lg:pt-32'
+        : 'flex min-h-[540px] items-end pb-10 pt-24 sm:min-h-[620px] sm:pb-16 lg:pt-32';
+  const heroContentClass =
+    homeStyle === 'poster'
+      ? 'max-w-5xl'
+      : homeStyle === 'editorial'
+        ? 'max-w-2xl border-l border-white/20 pl-5 sm:pl-7'
+      : centeredHero
+        ? 'mx-auto max-w-3xl text-center'
+        : 'max-w-2xl';
+  const heroTitleClass =
+    homeStyle === 'poster'
+      ? 'max-w-5xl text-5xl font-black uppercase leading-[0.86] tracking-tight text-white sm:text-7xl lg:text-8xl'
+      : 'max-w-xl text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl';
+
   return (
     <div className="min-h-screen bg-[#0B0E14] text-zinc-50 font-sans selection:bg-indigo-500/30 relative">
       <SEO />
@@ -134,33 +166,75 @@ export default function Storefront() {
       <div className="relative z-10">
         <Navbar />
 
-        <main className={`mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 ${theme === 'classic' ? 'pt-[calc(100svh-140px)]' : ''}`}>
-          {theme !== 'classic' && (
-            <section className="flex min-h-[540px] items-end pb-10 pt-24 sm:min-h-[620px] sm:pb-16 lg:pt-32">
-              <div className={centeredHero ? 'mx-auto max-w-3xl text-center' : 'max-w-2xl'}>
-                <div className="mb-4 inline-flex items-center gap-2 border border-white/10 bg-black/25 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-200 backdrop-blur">
-                  {heroEyebrow}
+        <main className={`mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 ${homeStyle === 'image' ? 'pt-[calc(100svh-140px)]' : ''}`}>
+          {shouldShowHero && (
+            <section className={heroSectionClass}>
+              <div className={homeStyle === 'split' ? 'grid w-full items-end gap-8 lg:grid-cols-[1.05fr_.95fr]' : 'w-full'}>
+                <div className={heroContentClass}>
+                  <div className="mb-4 inline-flex items-center gap-2 border border-white/10 bg-black/25 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-200 backdrop-blur">
+                    {heroEyebrow}
+                  </div>
+                  <h1 className={heroTitleClass}>
+                    Rumble Hub
+                  </h1>
+                  <p className="mt-5 max-w-lg text-base leading-7 text-zinc-300 sm:text-lg">
+                    Browse products, pay securely, and receive your items from one clean customer dashboard.
+                  </p>
+                  <div className={`mt-7 flex flex-col gap-3 sm:flex-row ${centeredHero ? 'sm:justify-center' : ''}`}>
+                    <Link
+                      to="/products"
+                      className={`inline-flex min-h-12 items-center justify-center px-6 py-3 text-sm font-bold transition-colors ${primaryButtonClass}`}
+                    >
+                      Browse Products
+                    </Link>
+                    <Link
+                      to="/feedback"
+                      className="inline-flex min-h-12 items-center justify-center border border-white/15 bg-black/20 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
+                    >
+                      View Reviews
+                    </Link>
+                  </div>
+
+                  {homeStyle === 'showcase' && (
+                    <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                      {products.slice(0, 3).map(product => (
+                        <Link
+                          key={product.id}
+                          to={`/product/${product.slug || product.id}`}
+                          className="border border-white/10 bg-black/25 p-3 text-left backdrop-blur transition-colors hover:bg-white/10"
+                        >
+                          <div className="text-sm font-bold text-white line-clamp-1">{product.title}</div>
+                          <div className="mt-1 text-xs text-zinc-400 line-clamp-1">{product.description || 'Instant delivery'}</div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <h1 className="max-w-xl text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl">
-                  Rumble Hub
-                </h1>
-                <p className="mt-5 max-w-lg text-base leading-7 text-zinc-300 sm:text-lg">
-                  Browse products, pay securely, and receive your items from one clean customer dashboard.
-                </p>
-                <div className={`mt-7 flex flex-col gap-3 sm:flex-row ${centeredHero ? 'sm:justify-center' : ''}`}>
+
+                {homeStyle === 'split' && (
                   <Link
-                    to="/products"
-                    className={`inline-flex min-h-12 items-center justify-center px-6 py-3 text-sm font-bold transition-colors ${primaryButtonClass}`}
+                    to={featuredProduct ? `/product/${featuredProduct.slug || featuredProduct.id}` : '/products'}
+                    className="hidden overflow-hidden border border-white/10 bg-black/25 backdrop-blur transition-colors hover:bg-white/10 lg:block"
                   >
-                    Browse Products
+                    <div className="aspect-[16/10] bg-zinc-900">
+                      {featuredProduct?.image && (
+                        <img
+                          src={featuredProduct.image}
+                          alt={featuredProduct.title}
+                          className="h-full w-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+                    </div>
+                    <div className="p-5">
+                      <div className="text-xs font-bold uppercase tracking-wider text-indigo-200">Featured Product</div>
+                      <div className="mt-2 text-2xl font-black text-white">{featuredProduct?.title || 'Digital Product'}</div>
+                      <p className="mt-2 text-sm text-zinc-400 line-clamp-2">
+                        {featuredProduct?.description || 'Secure checkout and instant delivery.'}
+                      </p>
+                    </div>
                   </Link>
-                  <Link
-                    to="/feedback"
-                    className="inline-flex min-h-12 items-center justify-center border border-white/15 bg-black/20 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
-                  >
-                    View Reviews
-                  </Link>
-                </div>
+                )}
               </div>
             </section>
           )}

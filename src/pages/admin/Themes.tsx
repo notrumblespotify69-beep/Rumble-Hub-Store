@@ -16,6 +16,13 @@ type ThemeOption = {
   eyebrow: string;
 };
 
+type LayoutStyle = {
+  id: string;
+  name: string;
+  description: string;
+  previewLayout: 'image' | 'left' | 'center' | 'split' | 'showcase' | 'poster' | 'compact' | 'editorial';
+};
+
 const themes: ThemeOption[] = [
   {
     id: 'classic',
@@ -206,11 +213,64 @@ const themes: ThemeOption[] = [
   }
 ];
 
+const layoutStyles: LayoutStyle[] = [
+  {
+    id: 'image',
+    name: 'Full Image',
+    description: 'Old clean homepage: full-screen background image, then products below.',
+    previewLayout: 'image'
+  },
+  {
+    id: 'left',
+    name: 'Left Hero',
+    description: 'Big text on the left with direct action buttons.',
+    previewLayout: 'left'
+  },
+  {
+    id: 'centered',
+    name: 'Centered',
+    description: 'Balanced centered landing page with calm spacing.',
+    previewLayout: 'center'
+  },
+  {
+    id: 'split',
+    name: 'Split Product',
+    description: 'Hero text plus a featured product panel on the right.',
+    previewLayout: 'split'
+  },
+  {
+    id: 'showcase',
+    name: 'Showcase',
+    description: 'Centered hero with quick product tiles under the buttons.',
+    previewLayout: 'showcase'
+  },
+  {
+    id: 'poster',
+    name: 'Poster',
+    description: 'Huge cinematic brand title near the bottom of the first screen.',
+    previewLayout: 'poster'
+  },
+  {
+    id: 'compact',
+    name: 'Compact',
+    description: 'Shorter hero so customers see products faster.',
+    previewLayout: 'compact'
+  },
+  {
+    id: 'editorial',
+    name: 'Editorial',
+    description: 'Magazine-style hero with a side rail and strong headline.',
+    previewLayout: 'editorial'
+  }
+];
+
 export default function AdminThemes() {
   const [themeId, setThemeId] = useState('classic');
+  const [homeStyle, setHomeStyle] = useState('image');
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const selectedTheme = themes.find(theme => theme.id === themeId) || themes[0];
+  const selectedLayout = layoutStyles.find(style => style.id === homeStyle) || layoutStyles[0];
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -221,7 +281,9 @@ export default function AdminThemes() {
     const loadTheme = async () => {
       const snap = await getDoc(doc(db, 'settings', 'theme'));
       if (snap.exists()) {
-        setThemeId(snap.data().themeId || 'classic');
+        const themeData = snap.data();
+        setThemeId(themeData.themeId || 'classic');
+        setHomeStyle(themeData.homeStyle || 'image');
       }
     };
     loadTheme();
@@ -232,12 +294,13 @@ export default function AdminThemes() {
     try {
       await setDoc(doc(db, 'settings', 'theme'), {
         themeId,
+        homeStyle,
         updatedAt: Date.now()
       }, { merge: true });
-      showToast('Theme saved.');
+      showToast('Theme and style saved.');
     } catch (error) {
       console.error(error);
-      showToast('Failed to save theme.', 'error');
+      showToast('Failed to save theme and style.', 'error');
     } finally {
       setSaving(false);
     }
@@ -270,15 +333,15 @@ export default function AdminThemes() {
               <Sparkles className="h-4 w-4 text-indigo-300" />
               Preview Theme
             </div>
-            <p className="mt-1 text-xs text-slate-400">Quick storefront mockup for the selected theme.</p>
+            <p className="mt-1 text-xs text-slate-400">Quick storefront mockup for the selected theme and homepage style.</p>
           </div>
           <div className="rounded-full border border-slate-700 px-3 py-1 text-xs font-semibold text-slate-300">
-            {selectedTheme.name}
+            {selectedTheme.name} / {selectedLayout.name}
           </div>
         </div>
 
         <div className={`${selectedTheme.preview} min-h-[430px] p-4 sm:p-6`}>
-          <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-white/10 bg-black/18 shadow-2xl shadow-black/30 backdrop-blur-sm">
+          <div className={`mx-auto max-w-4xl overflow-hidden border border-white/10 bg-black/18 shadow-2xl shadow-black/30 backdrop-blur-sm ${selectedLayout.previewLayout === 'image' ? 'rounded-none' : 'rounded-2xl'}`}>
             <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
               <div className={`text-sm font-black ${selectedTheme.text}`}>Rumble Hub</div>
               <div className="hidden items-center gap-4 text-[11px] font-semibold text-white/65 sm:flex">
@@ -291,36 +354,117 @@ export default function AdminThemes() {
               </div>
             </div>
 
-            <div className="grid gap-4 p-5 sm:grid-cols-[1.2fr_.8fr] sm:p-7">
-              <div className="flex min-h-56 flex-col justify-end">
-                <div className={`mb-3 inline-flex w-fit border border-white/15 bg-black/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${selectedTheme.accent}`}>
-                  {selectedTheme.eyebrow}
-                </div>
-                <h3 className={`max-w-md text-4xl font-black uppercase leading-[0.92] sm:text-5xl ${selectedTheme.text}`}>
-                  Rumble Hub
-                </h3>
-                <p className={`mt-3 max-w-md text-sm ${selectedTheme.text === 'text-slate-950' ? 'text-slate-700' : 'text-white/70'}`}>
-                  Browse products, pay securely, and receive your items instantly.
-                </p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <div className={`rounded px-4 py-2 text-xs font-bold ${selectedTheme.button}`}>Browse Products</div>
-                  <div className={`rounded border px-4 py-2 text-xs font-bold ${selectedTheme.text === 'text-slate-950' ? 'border-slate-900/20 text-slate-900' : 'border-white/15 text-white'}`}>
-                    Dashboard
+            <div className={`p-5 sm:p-7 ${
+              selectedLayout.previewLayout === 'split'
+                ? 'grid gap-4 sm:grid-cols-[1.05fr_.95fr]'
+                : selectedLayout.previewLayout === 'image'
+                  ? 'flex min-h-72 items-end'
+                  : selectedLayout.previewLayout === 'compact'
+                    ? 'min-h-56'
+                    : 'min-h-72'
+            }`}>
+              {selectedLayout.previewLayout === 'image' ? (
+                <div className="w-full">
+                  <div className="mb-4 h-20" />
+                  <div className="grid grid-cols-3 gap-3">
+                    {[1, 2, 3].map(item => (
+                      <div key={item} className={`rounded-lg border p-3 ${selectedTheme.panel}`}>
+                        <div className="aspect-[4/3] rounded bg-white/12" />
+                        <div className={`mt-3 h-2 w-16 rounded ${selectedTheme.text === 'text-slate-950' ? 'bg-slate-800' : 'bg-white/80'}`} />
+                        <div className="mt-2 h-2 w-10 rounded bg-white/30" />
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className={`flex flex-col ${
+                    selectedLayout.previewLayout === 'center' || selectedLayout.previewLayout === 'showcase'
+                      ? 'items-center text-center'
+                      : selectedLayout.previewLayout === 'poster'
+                        ? 'justify-end'
+                        : selectedLayout.previewLayout === 'editorial'
+                          ? 'border-l border-white/20 pl-5'
+                          : 'justify-end'
+                  } ${selectedLayout.previewLayout === 'compact' ? 'min-h-44' : 'min-h-56'}`}>
+                    <div className={`mb-3 inline-flex w-fit border border-white/15 bg-black/20 px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${selectedTheme.accent}`}>
+                      {selectedTheme.eyebrow}
+                    </div>
+                    <h3 className={`max-w-md font-black uppercase leading-[0.88] ${
+                      selectedLayout.previewLayout === 'poster' ? 'text-6xl sm:text-7xl' : 'text-4xl sm:text-5xl'
+                    } ${selectedTheme.text}`}>
+                      Rumble Hub
+                    </h3>
+                    <p className={`mt-3 max-w-md text-sm ${selectedTheme.text === 'text-slate-950' ? 'text-slate-700' : 'text-white/70'}`}>
+                      Browse products, pay securely, and receive your items instantly.
+                    </p>
+                    <div className={`mt-5 flex flex-wrap gap-2 ${
+                      selectedLayout.previewLayout === 'center' || selectedLayout.previewLayout === 'showcase' ? 'justify-center' : ''
+                    }`}>
+                      <div className={`rounded px-4 py-2 text-xs font-bold ${selectedTheme.button}`}>Browse Products</div>
+                      <div className={`rounded border px-4 py-2 text-xs font-bold ${selectedTheme.text === 'text-slate-950' ? 'border-slate-900/20 text-slate-900' : 'border-white/15 text-white'}`}>
+                        Reviews
+                      </div>
+                    </div>
 
-              <div className={`self-end rounded-xl border p-4 ${selectedTheme.panel}`}>
-                <div className="aspect-[4/3] rounded-lg bg-white/12" />
-                <div className={`mt-4 text-sm font-black ${selectedTheme.text}`}>ZXCHUB</div>
-                <div className={`mt-1 text-xs ${selectedTheme.text === 'text-slate-950' ? 'text-slate-600' : 'text-white/55'}`}>Premium digital product</div>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className={`text-lg font-black ${selectedTheme.text}`}>$1.80</span>
-                  <span className={`rounded px-3 py-1 text-xs font-bold ${selectedTheme.button}`}>View</span>
-                </div>
-              </div>
+                    {selectedLayout.previewLayout === 'showcase' && (
+                      <div className="mt-5 grid w-full max-w-xl grid-cols-3 gap-2">
+                        {['ZXCHUB', 'Rumble', 'Keys'].map(item => (
+                          <div key={item} className={`border px-3 py-2 text-left text-[11px] font-bold ${selectedTheme.panel} ${selectedTheme.text}`}>
+                            {item}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedLayout.previewLayout === 'split' && (
+                    <div className={`self-end rounded-xl border p-4 ${selectedTheme.panel}`}>
+                      <div className="aspect-[4/3] rounded-lg bg-white/12" />
+                      <div className={`mt-4 text-sm font-black ${selectedTheme.text}`}>ZXCHUB</div>
+                      <div className={`mt-1 text-xs ${selectedTheme.text === 'text-slate-950' ? 'text-slate-600' : 'text-white/55'}`}>Premium digital product</div>
+                      <div className="mt-4 flex items-center justify-between">
+                        <span className={`text-lg font-black ${selectedTheme.text}`}>$1.80</span>
+                        <span className={`rounded px-3 py-1 text-xs font-bold ${selectedTheme.button}`}>View</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
+        </div>
+      </div>
+
+      <div>
+        <div className="mb-3">
+          <h2 className="text-lg font-bold">Homepage Style</h2>
+          <p className="mt-1 text-sm text-slate-400">Choose the structure of the main page. Themes change colors, styles change layout.</p>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {layoutStyles.map(style => {
+            const selected = homeStyle === style.id;
+            return (
+              <button
+                key={style.id}
+                type="button"
+                onClick={() => setHomeStyle(style.id)}
+                className={`flex items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
+                  selected ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-800 bg-[#111827] hover:border-slate-700'
+                }`}
+              >
+                <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${
+                  selected ? 'border-indigo-500 bg-indigo-600 text-white' : 'border-slate-700 text-transparent'
+                }`}>
+                  <Check className="h-3.5 w-3.5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-white">{style.name}</div>
+                  <div className="mt-1 text-sm text-slate-400">{style.description}</div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 
