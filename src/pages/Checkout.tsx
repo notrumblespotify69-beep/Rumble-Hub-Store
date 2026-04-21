@@ -252,6 +252,8 @@ export default function Checkout() {
 
         const keyRefs = keysToBuy.map(key => doc(db, 'keys', key.docId));
         const keySnaps = await Promise.all(keyRefs.map(ref => transaction.get(ref)));
+        const promoDocSnap = promoDocRef && promoData ? await transaction.get(promoDocRef) : null;
+        const affSnap = affiliateDocRef ? await transaction.get(affiliateDocRef) : null;
 
         keySnaps.forEach((snap, index) => {
           if (!snap.exists()) {
@@ -262,9 +264,9 @@ export default function Checkout() {
           }
         });
 
+        let promoUpdate: { uses: number; usedBy: Record<string, number> } | null = null;
         if (promoDocRef && promoData) {
-          const promoDocSnap = await transaction.get(promoDocRef);
-          if (!promoDocSnap.exists()) {
+          if (!promoDocSnap?.exists()) {
             throw new Error('The coupon code is no longer available.');
           }
 
@@ -282,32 +284,34 @@ export default function Checkout() {
           }
 
           promoDetailsStr = currentPromoData.type === 'balance' ? `+$${currentPromoData.value} bonus` : `${currentPromoData.value}% discount`;
-
-          transaction.update(promoDocRef, {
+          promoUpdate = {
             uses: uses + 1,
             usedBy: { ...currentPromoData.usedBy, [user.uid]: userUses + 1 }
-          });
+          };
         }
 
-        if (affiliateDocRef) {
-          const affSnap = await transaction.get(affiliateDocRef);
-          if (affSnap.exists() && affSnap.id !== user.uid) {
-            const affData = affSnap.data() as any;
-            const earned = currentTotalAfterDiscount * 0.20;
-            transaction.update(affiliateDocRef, {
-              balance: Number(affData.balance || 0) + earned,
-              affiliateEarnings: Number(affData.affiliateEarnings || 0) + earned
-            });
-            const affHistoryRef = doc(collection(db, 'affiliate_history'));
-            transaction.set(affHistoryRef, {
-              affiliateId: affSnap.id,
-              referredUserId: user.uid,
-              referredUserEmail: user.email,
-              amount: currentTotalAfterDiscount,
-              earned: earned,
-              date: purchasedAt
-            });
-          }
+        const shouldCreditAffiliate = Boolean(affiliateDocRef && affSnap?.exists() && affSnap.id !== user.uid);
+        const affData = shouldCreditAffiliate ? affSnap!.data() as any : null;
+        const earned = shouldCreditAffiliate ? currentTotalAfterDiscount * 0.20 : 0;
+
+        if (promoDocRef && promoUpdate) {
+          transaction.update(promoDocRef, promoUpdate);
+        }
+
+        if (affiliateDocRef && shouldCreditAffiliate && affData) {
+          transaction.update(affiliateDocRef, {
+            balance: Number(affData.balance || 0) + earned,
+            affiliateEarnings: Number(affData.affiliateEarnings || 0) + earned
+          });
+          const affHistoryRef = doc(collection(db, 'affiliate_history'));
+          transaction.set(affHistoryRef, {
+            affiliateId: affSnap!.id,
+            referredUserId: user.uid,
+            referredUserEmail: user.email,
+            amount: currentTotalAfterDiscount,
+            earned: earned,
+            date: purchasedAt
+          });
         }
 
         if (appliedBalanceToUse > 0) {
