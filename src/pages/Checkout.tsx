@@ -72,7 +72,9 @@ export default function Checkout() {
   }, [productId, variantId, isCartCheckout, cart, navigate]);
 
   const subtotal = isCartCheckout ? cartTotal : (variant?.price || 0) * quantity;
-  const totalAfterDiscount = subtotal * (1 - discountPercent / 100);
+  const reviewDiscountPercent = profile?.reviewDiscountAvailable && discountPercent === 0 ? 5 : 0;
+  const effectiveDiscountPercent = Math.max(discountPercent, reviewDiscountPercent);
+  const totalAfterDiscount = subtotal * (1 - effectiveDiscountPercent / 100);
   const balanceToUse = useBalance ? Math.min(profile?.balance || 0, totalAfterDiscount) : 0;
   const finalAmount = totalAfterDiscount - balanceToUse;
 
@@ -130,7 +132,7 @@ export default function Checkout() {
 
           if (!existingTransaction.empty) {
             window.history.replaceState({}, document.title, window.location.pathname);
-            navigate('/profile?tab=purchases');
+            navigate(`/order/${existingTransaction.docs[0].id}`);
             return;
           }
 
@@ -164,9 +166,18 @@ export default function Checkout() {
     setError('');
 
     try {
-      const keysToBuy: Array<{ docId: string; price: number; title: string }> = [];
+      const keysToBuy: Array<{ docId: string; price: number; title: string; productId: string; variantId: string; variantName: string; image?: string; instructions?: string }> = [];
+      const productsById: Record<string, any> = {};
 
       if (isCartCheckout) {
+        const productIds = Array.from(new Set(cart.map(item => item.productId)));
+        await Promise.all(productIds.map(async id => {
+          const snap = await getDoc(doc(db, 'products', id));
+          if (snap.exists()) {
+            productsById[id] = { id: snap.id, ...snap.data() };
+          }
+        }));
+
         for (const item of cart) {
           const stockQuery = query(
             collection(db, 'keys'),
@@ -179,7 +190,16 @@ export default function Checkout() {
           if (snap.docs.length < item.quantity) {
             throw new Error(`Not enough stock for ${item.title} (${item.variantName})`);
           }
-          keysToBuy.push(...snap.docs.map(d => ({ docId: d.id, price: item.price, title: item.title })));
+          keysToBuy.push(...snap.docs.map(d => ({
+            docId: d.id,
+            price: item.price,
+            title: item.title,
+            productId: item.productId,
+            variantId: item.variantId,
+            variantName: item.variantName,
+            image: item.image,
+            instructions: productsById[item.productId]?.instructions || ''
+          })));
         }
       } else {
         const stockQuery = query(
@@ -195,12 +215,22 @@ export default function Checkout() {
           throw new Error(`Sorry, only ${keySnap.docs.length} keys left in stock!`);
         }
 
-        keysToBuy.push(...keySnap.docs.map(d => ({ docId: d.id, price: variant.price, title: product.title })));
+        keysToBuy.push(...keySnap.docs.map(d => ({
+          docId: d.id,
+          price: variant.price,
+          title: product.title,
+          productId: productId!,
+          variantId: variantId!,
+          variantName: variant.name,
+          image: product.image,
+          instructions: product.instructions || ''
+        })));
       }
 
-      const appliedDiscountPercent = metadata?.discountPercent ? Number(metadata.discountPercent) : discountPercent;
+      const appliedDiscountPercent = metadata?.discountPercent ? Number(metadata.discountPercent) : effectiveDiscountPercent;
       const appliedPromoCode = metadata?.promoCode || promoCode;
       const appliedBalanceToUse = metadata?.balanceUsed ? Number(metadata.balanceUsed) : balanceToUse;
+      const appliedReviewDiscount = metadata?.reviewDiscount === 'true' || (reviewDiscountPercent > 0 && appliedDiscountPercent === 5 && !appliedPromoCode);
       const currentSubtotal = isCartCheckout ? cartTotal : (variant?.price || 0) * quantity;
       const currentTotalAfterDiscount = currentSubtotal * (1 - appliedDiscountPercent / 100);
 
@@ -302,11 +332,27 @@ export default function Checkout() {
           });
         }
 
-        if (appliedBalanceToUse > 0) {
+        if (appliedBalanceToUse > 0 || appliedReviewDiscount) {
           transaction.update(userRef, {
-            balance: currentBalance - appliedBalanceToUse
+            ...(appliedBalanceToUse > 0 ? { balance: currentBalance - appliedBalanceToUse } : {}),
+            ...(appliedReviewDiscount ? { reviewDiscountAvailable: false } : {})
           });
         }
+
+        const deliveredItems = keyRefs.map((keyRef, index) => {
+          const key = keysToBuy[index];
+          return {
+            keyId: keyRef.id,
+            keyString: keySnaps[index].data().keyString,
+            productId: key.productId,
+            variantId: key.variantId,
+            productName: key.title,
+            variantName: key.variantName,
+            price: key.price,
+            image: key.image || '',
+            instructions: key.instructions || ''
+          };
+        });
 
         keyRefs.forEach((keyRef, index) => {
           const key = keysToBuy[index];
@@ -317,7 +363,8 @@ export default function Checkout() {
             ownerPhoto: latestProfile.photoURL || '',
             purchasedAt,
             price: key.price,
-            productName: key.title
+            productName: key.title,
+            instructions: key.instructions || ''
           });
         });
 
@@ -332,6 +379,11 @@ export default function Checkout() {
                 ? 'Credit Card'
                 : 'Other',
           productTitle: isCartCheckout ? 'Cart Checkout' : product.title,
+          items: deliveredItems,
+          subtotal: currentSubtotal,
+          discountPercent: appliedDiscountPercent,
+          reviewDiscountApplied: appliedReviewDiscount,
+          balanceUsed: appliedBalanceToUse,
           promoCode: appliedPromoCode || null,
           promoDetails: promoDetailsStr,
           createdAt: purchasedAt,
@@ -351,7 +403,7 @@ export default function Checkout() {
          });
       } catch (e) {}
 
-      navigate('/profile?tab=purchases');
+      navigate(`/order/${transactionRef.id}`);
     } catch (purchaseError: any) {
       console.error(purchaseError);
       setError(purchaseError.message || 'An error occurred during purchase.');
@@ -374,8 +426,13 @@ export default function Checkout() {
       setIsProcessing(true);
       try {
         const metadata: any = isCartCheckout ? { type: 'cart' } : { productId, variantId, quantity };
+        if (effectiveDiscountPercent > 0) {
+          metadata.discountPercent = effectiveDiscountPercent;
+          if (reviewDiscountPercent > 0 && discountPercent === 0) {
+            metadata.reviewDiscount = 'true';
+          }
+        }
         if (discountPercent > 0) {
-          metadata.discountPercent = discountPercent;
           metadata.promoCode = promoCode.toUpperCase();
         }
         if (useBalance && balanceToUse > 0) {
@@ -490,10 +547,10 @@ export default function Checkout() {
                 <span>Subtotal</span>
                 <span>${subtotal.toFixed(2)}</span>
               </div>
-              {discountPercent > 0 && (
+              {effectiveDiscountPercent > 0 && (
                 <div className="flex justify-between text-green-400">
-                  <span>Discount ({discountPercent}%)</span>
-                  <span>-${(subtotal * (discountPercent / 100)).toFixed(2)}</span>
+                  <span>{reviewDiscountPercent > 0 && discountPercent === 0 ? 'Review Reward' : 'Discount'} ({effectiveDiscountPercent}%)</span>
+                  <span>-${(subtotal * (effectiveDiscountPercent / 100)).toFixed(2)}</span>
                 </div>
               )}
               {balanceToUse > 0 && (

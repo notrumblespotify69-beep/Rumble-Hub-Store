@@ -12,6 +12,7 @@ const Feedback = lazy(() => import('./pages/Feedback'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 const Checkout = lazy(() => import('./pages/Checkout'));
+const OrderComplete = lazy(() => import('./pages/OrderComplete'));
 
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
@@ -95,6 +96,7 @@ export default function App() {
             <Route path="/product/:slug" element={<ProductPage />} />
             <Route path="/checkout/cart" element={<Checkout />} />
             <Route path="/checkout/:productId/:variantId" element={<Checkout />} />
+            <Route path="/order/:transactionId" element={<OrderComplete />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
 

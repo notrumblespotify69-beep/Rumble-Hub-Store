@@ -11,6 +11,7 @@ interface UserProfile {
   role: 'admin' | 'user' | 'support';
   balance: number;
   discountPercentage?: number;
+  reviewDiscountAvailable?: boolean;
   affiliateEarnings?: number;
   discordId?: string;
   discordUsername?: string;

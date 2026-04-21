@@ -93,7 +93,7 @@ export default function Profile() {
           {activeTab === 'settings' && <SettingsTab profile={profile} showToast={showToast} />}
           {activeTab === 'purchases' && <PurchasesTab user={user} />}
           {activeTab === 'invoices' && <InvoicesTab user={user} />}
-          {activeTab === 'tickets' && <TicketsTab user={user} profile={profile} />}
+          {activeTab === 'tickets' && <TicketsTab user={user} profile={profile} startCreating={searchParams.get('new') === '1'} />}
         </div>
       </div>
     </div>
@@ -1453,12 +1453,12 @@ function AdminPromoCodes({ showToast }: { showToast: any }) {
   );
 }
 
-function TicketsTab({ user, profile }: { user: any, profile: any }) {
+function TicketsTab({ user, profile, startCreating = false }: { user: any, profile: any, startCreating?: boolean }) {
   const [tickets, setTickets] = useState<any[]>([]);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const [isCreating, setIsCreating] = useState(startCreating);
   const [newSubject, setNewSubject] = useState('');
   const msgInitLoad = React.useRef(true);
 
