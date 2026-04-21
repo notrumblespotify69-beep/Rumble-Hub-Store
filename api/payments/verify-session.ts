@@ -1,4 +1,4 @@
-import { getStripe } from '../_lib/stripe';
+import { getStripe } from '../_lib/stripe.js';
 
 type VercelRequest = {
   method?: string;

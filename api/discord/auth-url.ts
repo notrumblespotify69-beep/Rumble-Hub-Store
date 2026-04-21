@@ -1,5 +1,5 @@
-import { getAdminDb } from '../_lib/firebase-admin';
-import { ApiRequest, ApiResponse, getQueryValue, getRequestOrigin } from '../_lib/http';
+import { getAdminDb } from '../_lib/firebase-admin.js';
+import { ApiRequest, ApiResponse, getQueryValue, getRequestOrigin } from '../_lib/http.js';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   res.setHeader('Allow', 'GET');
