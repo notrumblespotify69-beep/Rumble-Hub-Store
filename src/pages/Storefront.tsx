@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Gamepad2, ShoppingCart, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { collection, getDocs, orderBy, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, orderBy, query, where } from 'firebase/firestore';
 import { useAuth } from '../AuthContext';
 import { db } from '../firebase';
 import Navbar from '../components/Navbar';
@@ -18,13 +18,70 @@ export default function Storefront() {
     averageRating: 0
   });
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
+  const [theme, setTheme] = useState('classic');
+  const heroBgClass =
+    theme === 'classic' ? 'classic-hero-bg' :
+    theme === 'pulse' ? 'pulse-hero-bg' :
+    theme === 'minimal' ? 'minimal-hero-bg' :
+    theme === 'vault' ? 'vault-hero-bg' :
+    theme === 'aurora' ? 'aurora-hero-bg' :
+    theme === 'arcade' ? 'arcade-hero-bg' :
+    theme === 'monolith' ? 'monolith-hero-bg' :
+    theme === 'gridline' ? 'gridline-hero-bg' :
+    theme === 'frost' ? 'frost-hero-bg' :
+    theme === 'crimson' ? 'crimson-hero-bg' :
+    theme === 'circuit' ? 'circuit-hero-bg' :
+    theme === 'solar' ? 'solar-hero-bg' :
+    theme === 'sakura' ? 'sakura-hero-bg' :
+    theme === 'terminal' ? 'terminal-hero-bg' :
+    theme === 'midnight' ? 'midnight-hero-bg' :
+    theme === 'daylight' ? 'daylight-hero-bg' :
+    'store-hero-bg';
+  const centeredHero = theme === 'minimal' || theme === 'aurora' || theme === 'monolith' || theme === 'frost' || theme === 'sakura' || theme === 'daylight';
+  const heroEyebrow =
+    theme === 'pulse' ? 'Live Storefront' :
+    theme === 'vault' ? 'Secured Digital Vault' :
+    theme === 'aurora' ? 'Clean Instant Delivery' :
+    theme === 'arcade' ? 'Neon Product Drop' :
+    theme === 'monolith' ? 'Monochrome Digital Store' :
+    theme === 'gridline' ? 'Cyber Product Grid' :
+    theme === 'frost' ? 'Crystal Clear Checkout' :
+    theme === 'crimson' ? 'High-Impact Digital Drop' :
+    theme === 'circuit' ? 'Encrypted Instant Access' :
+    theme === 'solar' ? 'Premium Digital Sunrise' :
+    theme === 'sakura' ? 'Soft Digital Boutique' :
+    theme === 'terminal' ? 'Console Product Drop' :
+    theme === 'midnight' ? 'Luxury Digital Vault' :
+    theme === 'daylight' ? 'Clean Instant Store' :
+    'Instant Digital Delivery';
+  const primaryButtonClass =
+    theme === 'vault' ? 'bg-emerald-500 text-black hover:bg-emerald-400' :
+    theme === 'aurora' ? 'bg-cyan-400 text-slate-950 hover:bg-cyan-300' :
+    theme === 'arcade' ? 'bg-pink-500 text-white hover:bg-pink-400' :
+    theme === 'monolith' ? 'bg-white text-black hover:bg-zinc-200' :
+    theme === 'gridline' ? 'bg-cyan-400 text-slate-950 hover:bg-cyan-300' :
+    theme === 'frost' ? 'bg-sky-300 text-slate-950 hover:bg-sky-200' :
+    theme === 'crimson' ? 'bg-red-500 text-white hover:bg-red-400' :
+    theme === 'circuit' ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300' :
+    theme === 'solar' ? 'bg-amber-300 text-slate-950 hover:bg-amber-200' :
+    theme === 'sakura' ? 'bg-rose-300 text-slate-950 hover:bg-rose-200' :
+    theme === 'terminal' ? 'bg-lime-300 text-slate-950 hover:bg-lime-200' :
+    theme === 'midnight' ? 'bg-yellow-300 text-slate-950 hover:bg-yellow-200' :
+    theme === 'daylight' ? 'bg-blue-600 text-white hover:bg-blue-500' :
+    'bg-indigo-600 text-white hover:bg-indigo-500';
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const productsSnap = await getDocs(collection(db, 'products'));
+        const [productsSnap, themeSnap] = await Promise.all([
+          getDocs(collection(db, 'products')),
+          getDoc(doc(db, 'settings', 'theme'))
+        ]);
         const prods = productsSnap.docs.map(d => ({ id: d.id, ...d.data() } as any));
         setProducts(prods);
+        if (themeSnap.exists()) {
+          setTheme(themeSnap.data().themeId || 'classic');
+        }
 
         const keysSnap = await getDocs(query(collection(db, 'keys'), where('isSold', '==', false)));
         const counts: Record<string, number> = {};
@@ -72,39 +129,41 @@ export default function Storefront() {
   return (
     <div className="min-h-screen bg-[#0B0E14] text-zinc-50 font-sans selection:bg-indigo-500/30 relative">
       <SEO />
-      <div className="store-hero-bg absolute left-0 top-0 z-0 h-[100svh] min-h-[620px] w-full pointer-events-none" />
+      <div className={`${heroBgClass} absolute left-0 top-0 z-0 h-[100svh] min-h-[620px] w-full pointer-events-none`} />
 
       <div className="relative z-10">
         <Navbar />
 
-        <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <section className="flex min-h-[540px] items-end pb-10 pt-24 sm:min-h-[620px] sm:pb-16 lg:pt-32">
-            <div className="max-w-2xl">
-              <div className="mb-4 inline-flex items-center gap-2 border border-white/10 bg-black/25 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-200 backdrop-blur">
-                Instant Digital Delivery
+        <main className={`mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8 ${theme === 'classic' ? 'pt-[calc(100svh-140px)]' : ''}`}>
+          {theme !== 'classic' && (
+            <section className="flex min-h-[540px] items-end pb-10 pt-24 sm:min-h-[620px] sm:pb-16 lg:pt-32">
+              <div className={centeredHero ? 'mx-auto max-w-3xl text-center' : 'max-w-2xl'}>
+                <div className="mb-4 inline-flex items-center gap-2 border border-white/10 bg-black/25 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-indigo-200 backdrop-blur">
+                  {heroEyebrow}
+                </div>
+                <h1 className="max-w-xl text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl">
+                  Rumble Hub
+                </h1>
+                <p className="mt-5 max-w-lg text-base leading-7 text-zinc-300 sm:text-lg">
+                  Browse products, pay securely, and receive your items from one clean customer dashboard.
+                </p>
+                <div className={`mt-7 flex flex-col gap-3 sm:flex-row ${centeredHero ? 'sm:justify-center' : ''}`}>
+                  <Link
+                    to="/products"
+                    className={`inline-flex min-h-12 items-center justify-center px-6 py-3 text-sm font-bold transition-colors ${primaryButtonClass}`}
+                  >
+                    Browse Products
+                  </Link>
+                  <Link
+                    to="/feedback"
+                    className="inline-flex min-h-12 items-center justify-center border border-white/15 bg-black/20 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
+                  >
+                    View Reviews
+                  </Link>
+                </div>
               </div>
-              <h1 className="max-w-xl text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-6xl lg:text-7xl">
-                Rumble Hub
-              </h1>
-              <p className="mt-5 max-w-lg text-base leading-7 text-zinc-300 sm:text-lg">
-                Browse products, pay securely, and receive your items from one clean customer dashboard.
-              </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  to="/products"
-                  className="inline-flex min-h-12 items-center justify-center bg-indigo-600 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-indigo-500"
-                >
-                  Browse Products
-                </Link>
-                <Link
-                  to="/feedback"
-                  className="inline-flex min-h-12 items-center justify-center border border-white/15 bg-black/20 px-6 py-3 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
-                >
-                  View Reviews
-                </Link>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
 
           <section>
             <div className="mb-6 flex items-end justify-between gap-4 sm:mb-8">

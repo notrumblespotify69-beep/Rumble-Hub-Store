@@ -5,7 +5,7 @@ import {
   Home, Menu, ListOrdered, Receipt, Users, Star, Ticket,
   Wallet, Store, Shield, ShieldBan, ShieldCheck, FileText,
   Settings, CreditCard, UsersRound, Globe, Upload, User,
-  ChevronDown, ChevronRight, BookOpen, Percent, Megaphone
+  ChevronDown, ChevronRight, BookOpen, Percent, Megaphone, Palette
 } from 'lucide-react';
 
 interface NavItemProps {
@@ -150,6 +150,7 @@ export default function AdminLayout() {
                   { label: 'Team', to: '/admin/settings/team', icon: UsersRound },
                   { label: 'Discounts', to: '/admin/settings/discounts', icon: Percent },
                   { label: 'Announcements', to: '/admin/settings/announcements', icon: Megaphone },
+                  { label: 'Themes', to: '/admin/settings/themes', icon: Palette },
                 ]}
               />
               <NavItem icon={User} label="Account" to="/profile" isActive={false} />
