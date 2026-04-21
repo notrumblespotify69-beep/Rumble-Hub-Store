@@ -17,6 +17,7 @@ const OrderComplete = lazy(() => import('./pages/OrderComplete'));
 const AdminLayout = lazy(() => import('./layouts/AdminLayout'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const AdminProducts = lazy(() => import('./pages/admin/Products'));
+const AdminInstructions = lazy(() => import('./pages/admin/Instructions'));
 const AdminKeys = lazy(() => import('./pages/admin/Keys'));
 const AdminPromoCodes = lazy(() => import('./pages/admin/PromoCodes'));
 const AdminCustomers = lazy(() => import('./pages/admin/Customers'));
@@ -26,6 +27,9 @@ const AdminTickets = lazy(() => import('./pages/admin/Tickets'));
 const AdminDiscord = lazy(() => import('./pages/admin/Discord'));
 const AdminPayments = lazy(() => import('./pages/admin/Payments'));
 const AdminTeam = lazy(() => import('./pages/admin/Team'));
+const AdminDiscounts = lazy(() => import('./pages/admin/Discounts'));
+const AdminAnnouncements = lazy(() => import('./pages/admin/Announcements'));
+const Affiliate = lazy(() => import('./pages/Affiliate'));
 
 function AffiliateTracker() {
   useEffect(() => {
@@ -92,6 +96,7 @@ export default function App() {
             <Route path="/" element={<Storefront />} />
             <Route path="/products" element={<Products />} />
             <Route path="/feedback" element={<Feedback />} />
+            <Route path="/affiliate" element={<Affiliate />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/product/:slug" element={<ProductPage />} />
             <Route path="/checkout/cart" element={<Checkout />} />
@@ -104,6 +109,7 @@ export default function App() {
               <Route index element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
               <Route path="products/keys" element={<AdminKeys />} />
+              <Route path="products/instructions" element={<AdminInstructions />} />
               <Route path="orders/customers" element={<AdminCustomers />} />
               <Route path="orders/invoices" element={<AdminInvoices />} />
               <Route path="orders/feedbacks" element={<AdminFeedbacks />} />
@@ -112,6 +118,8 @@ export default function App() {
               <Route path="settings/discord" element={<AdminDiscord />} />
               <Route path="settings/payments" element={<AdminPayments />} />
               <Route path="settings/team" element={<AdminTeam />} />
+              <Route path="settings/discounts" element={<AdminDiscounts />} />
+              <Route path="settings/announcements" element={<AdminAnnouncements />} />
               <Route path="*" element={<AdminNotFound />} />
             </Route>
           </Routes>

@@ -52,6 +52,7 @@ export default function OrderComplete() {
   const [reviewed, setReviewed] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [reviewDiscountPercent, setReviewDiscountPercent] = useState(5);
 
   const items = useMemo(() => order?.items || [], [order]);
   const firstItem = items[0];
@@ -66,7 +67,13 @@ export default function OrderComplete() {
 
     const fetchOrder = async () => {
       try {
-        const snap = await getDoc(doc(db, 'transactions', transactionId));
+        const [snap, discountsSnap] = await Promise.all([
+          getDoc(doc(db, 'transactions', transactionId)),
+          getDoc(doc(db, 'settings', 'discounts'))
+        ]);
+        if (discountsSnap.exists()) {
+          setReviewDiscountPercent(Number((discountsSnap.data() as any).reviewDiscountPercent ?? 5));
+        }
         if (!snap.exists()) {
           setOrder(null);
           return;
@@ -136,7 +143,7 @@ export default function OrderComplete() {
         await updateDoc(doc(db, 'users', user.uid), {
           reviewDiscountAvailable: true
         });
-        showToast('Review posted. Your next purchase has a 5% discount.');
+        showToast(`Review posted. Your next purchase has a ${reviewDiscountPercent}% discount.`);
       } else {
         showToast('Review posted. Thanks for the feedback.');
       }
@@ -196,7 +203,7 @@ export default function OrderComplete() {
               {order.discountPercent > 0 && (
                 <div className="flex justify-between text-green-400">
                   <span>{order.reviewDiscountApplied ? 'Review Reward' : 'Discount'} ({order.discountPercent}%)</span>
-                  <span>-${(Number(order.subtotal || 0) * (Number(order.discountPercent) / 100)).toFixed(2)}</span>
+                  <span>-${Number(order.discountAmount || (Number(order.subtotal || 0) * (Number(order.discountPercent) / 100))).toFixed(2)}</span>
                 </div>
               )}
               {order.balanceUsed > 0 && (
@@ -301,7 +308,7 @@ export default function OrderComplete() {
 
             <section className="border-t border-zinc-800/50 pt-10">
               <h2 className="text-lg font-bold">Leave a Review</h2>
-              <p className="text-zinc-400 text-sm mt-1 mb-5">Leave feedback with at least 4 stars to unlock 5% off your next purchase.</p>
+              <p className="text-zinc-400 text-sm mt-1 mb-5">Leave feedback with at least 4 stars to unlock {reviewDiscountPercent}% off your next purchase.</p>
 
               {reviewed ? (
                 <div className="border border-emerald-500/20 bg-emerald-500/10 text-emerald-300 rounded-xl p-4 text-sm">

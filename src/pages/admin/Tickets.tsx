@@ -2,7 +2,46 @@ import React, { useState, useEffect } from 'react';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../AuthContext';
-import { MessageSquare, Send, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { MessageSquare, Send, XCircle, Paperclip } from 'lucide-react';
+
+function readAttachment(file: File): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if (file.size > 700 * 1024) {
+      reject(new Error('Attachment must be under 700KB.'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      size: file.size,
+      dataUrl: String(reader.result || '')
+    });
+    reader.onerror = () => reject(new Error('Failed to read attachment.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function AttachmentList({ attachments }: { attachments?: any[] }) {
+  if (!attachments?.length) return null;
+  return (
+    <div className="mt-3 space-y-2">
+      {attachments.map((file, index) => (
+        <a
+          key={`${file.name}-${index}`}
+          href={file.dataUrl || file.url}
+          download={file.name}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs hover:bg-black/30"
+        >
+          <Paperclip className="w-3.5 h-3.5" />
+          <span className="truncate">{file.name || 'Attachment'}</span>
+        </a>
+      ))}
+    </div>
+  );
+}
 
 export default function AdminTickets() {
   const { user, profile } = useAuth();
@@ -10,6 +49,7 @@ export default function AdminTickets() {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
+  const [attachments, setAttachments] = useState<any[]>([]);
   const [filter, setFilter] = useState('active'); // active, closed, all
   const [loading, setLoading] = useState(true);
   const msgInitLoad = React.useRef(true);
@@ -51,11 +91,12 @@ export default function AdminTickets() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedTicket || !user) return;
+    if ((!newMessage.trim() && attachments.length === 0) || !selectedTicket || !user) return;
 
     try {
       await addDoc(collection(db, `tickets/${selectedTicket.id}/messages`), {
         text: newMessage,
+        attachments,
         senderId: user.uid,
         senderName: profile?.displayName || 'Support',
         isAdmin: true,
@@ -64,11 +105,12 @@ export default function AdminTickets() {
       
       await updateDoc(doc(db, 'tickets', selectedTicket.id), {
         updatedAt: Date.now(),
-        lastMessage: newMessage,
+        lastMessage: newMessage || `${attachments.length} attachment(s)`,
         status: 'active' // Re-open if it was closed and admin replies
       });
       
       setNewMessage('');
+      setAttachments([]);
     } catch (err) {
       console.error(err);
     }
@@ -180,6 +222,7 @@ export default function AdminTickets() {
                         <span>{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       </div>
                       <div className="break-words whitespace-pre-wrap">{msg.text}</div>
+                      <AttachmentList attachments={msg.attachments} />
                     </div>
                   </div>
                 );
@@ -189,16 +232,43 @@ export default function AdminTickets() {
             {/* Input Area */}
             <div className="p-4 border-t border-[#222b3d] bg-[#1a2332]">
               <form onSubmit={handleSendMessage} className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={newMessage}
-                  onChange={e => setNewMessage(e.target.value)}
-                  placeholder="Type your reply..."
-                  className="flex-1 bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value)}
+                    placeholder="Type your reply..."
+                    className="w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  />
+                  {attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {attachments.map((file, index) => (
+                        <span key={`${file.name}-${index}`} className="rounded-full bg-[#0f172a] px-3 py-1 text-xs text-slate-300">{file.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <label className="bg-[#0f172a] border border-[#222b3d] hover:bg-[#1e293b] text-white px-3 py-2 rounded-lg font-medium transition-colors cursor-pointer flex items-center">
+                  <Paperclip className="w-4 h-4" />
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={async e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const attachment = await readAttachment(file);
+                        setAttachments(current => [...current, attachment].slice(0, 3));
+                      } catch (error: any) {
+                        alert(error.message);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
                 <button 
                   type="submit"
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() && attachments.length === 0}
                   className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center"
                 >
                   <Send className="w-5 h-5" />

@@ -3,7 +3,7 @@ import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { 
   Search, Filter, Download, RefreshCw, User, Mail, 
-  DollarSign, Calendar, Shield, Edit2, Check, X, ArrowLeft, Receipt
+  DollarSign, Calendar, Shield, Edit2, Check, X, ArrowLeft, Receipt, Gamepad2
 } from 'lucide-react';
 
 export default function AdminCustomers() {
@@ -292,6 +292,19 @@ export default function AdminCustomers() {
               <div className="flex items-center justify-between p-4 border-b border-[#222b3d]">
                 <span className="text-sm font-medium text-slate-400">Last Known IP</span>
                 <span className="text-sm font-mono text-slate-400">{selectedCustomer.lastIp || '-'}</span>
+              </div>
+              <div className="flex items-center justify-between p-4 border-b border-[#222b3d]">
+                <span className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                  <Gamepad2 className="w-4 h-4" /> Discord
+                </span>
+                {selectedCustomer.discordId ? (
+                  <div className="text-right">
+                    <div className="text-sm text-white">{selectedCustomer.discordUsername || 'Linked Account'}</div>
+                    <div className="text-xs font-mono text-slate-500">{selectedCustomer.discordId}</div>
+                  </div>
+                ) : (
+                  <span className="text-sm text-slate-500">Not Linked Yet</span>
+                )}
               </div>
               <div className="flex items-center justify-between p-4">
                 <span className="text-sm font-medium text-slate-400">Last Known Country</span>

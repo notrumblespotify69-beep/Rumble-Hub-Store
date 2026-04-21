@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, LogOut, Gamepad2, Wallet, X, Trash2, CreditCard } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { db } from '../firebase';
-import { doc, updateDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs, limit, getDoc } from 'firebase/firestore';
 
 function Toast({ toast }: { toast: {message: string, type: string} | null }) {
   if (!toast) return null;
@@ -22,6 +22,7 @@ export default function Navbar() {
   const [promoCode, setPromoCode] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null);
+  const [announcement, setAnnouncement] = useState<any>(null);
   const navigate = useNavigate();
 
   const showToast = (message: string, type: 'success'|'error' = 'success') => {
@@ -65,6 +66,20 @@ export default function Navbar() {
   };
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+  useEffect(() => {
+    const fetchAnnouncement = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'settings', 'announcement'));
+        if (snap.exists() && snap.data().enabled && snap.data().message) {
+          setAnnouncement(snap.data());
+        }
+      } catch (error) {
+        console.error('Failed to load announcement', error);
+      }
+    };
+    fetchAnnouncement();
+  }, []);
 
   const handleTopUp = async () => {
     if (!user || !profile) return;
@@ -166,6 +181,18 @@ export default function Navbar() {
   return (
     <>
       <Toast toast={toast} />
+      {announcement && (
+        <div className="sticky top-0 z-[60] border-b border-indigo-500/20 bg-indigo-600 text-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-center gap-3 text-center text-sm font-medium">
+            <span>{announcement.message}</span>
+            {announcement.linkText && announcement.linkUrl && (
+              <a href={announcement.linkUrl} target="_blank" rel="noreferrer" className="underline decoration-white/50 underline-offset-4 hover:decoration-white">
+                {announcement.linkText}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
       <nav className="sticky top-0 z-50 border-b border-zinc-800/50 bg-[#0B0E14]/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -180,6 +207,7 @@ export default function Navbar() {
               <Link to="/" className="text-zinc-300 hover:text-white font-medium transition-colors">Home</Link>
               <Link to="/products" className="text-zinc-300 hover:text-white font-medium transition-colors">Products</Link>
               <Link to="/feedback" className="text-zinc-300 hover:text-white font-medium transition-colors">Feedback</Link>
+              {user && <Link to="/affiliate" className="text-zinc-300 hover:text-white font-medium transition-colors">Affiliate</Link>}
             </div>
 
             {/* Right Actions */}

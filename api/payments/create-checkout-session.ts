@@ -28,6 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const stripe = getStripe();
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [

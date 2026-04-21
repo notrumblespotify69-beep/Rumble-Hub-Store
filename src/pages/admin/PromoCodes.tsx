@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import { collection, getDocs, addDoc, deleteDoc, doc, getDoc, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Trash2, TrendingUp, DollarSign, Users } from 'lucide-react';
+import { Box, Trash2, TrendingUp, DollarSign, Users } from 'lucide-react';
 
 export default function AdminPromoCodes() {
   const [promos, setPromos] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [affiliateCommissionPercent, setAffiliateCommissionPercent] = useState(20);
   const [code, setCode] = useState('');
   const [type, setType] = useState<'balance' | 'discount'>('balance');
   const [value, setValue] = useState(10);
   const [maxUses, setMaxUses] = useState(100);
   const [maxUsesPerUser, setMaxUsesPerUser] = useState(1);
+  const [productScope, setProductScope] = useState<'all' | 'product'>('all');
+  const [selectedProductId, setSelectedProductId] = useState('');
   const [isAffiliate, setIsAffiliate] = useState(false);
   const [affiliateEmail, setAffiliateEmail] = useState('');
   const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null);
@@ -22,12 +26,20 @@ export default function AdminPromoCodes() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [promosSnap, txSnap] = await Promise.all([
+      const [promosSnap, txSnap, productsSnap, discountsSnap] = await Promise.all([
         getDocs(collection(db, 'promocodes')),
-        getDocs(collection(db, 'transactions'))
+        getDocs(collection(db, 'transactions')),
+        getDocs(collection(db, 'products')),
+        getDoc(doc(db, 'settings', 'discounts'))
       ]);
       setPromos(promosSnap.docs.map(d => ({ id: d.id, ...d.data() })));
       setTransactions(txSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const productList = productsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setProducts(productList);
+      if (productList[0]) setSelectedProductId(productList[0].id);
+      if (discountsSnap.exists()) {
+        setAffiliateCommissionPercent(Number((discountsSnap.data() as any).affiliateCommissionPercent ?? 20));
+      }
     };
     fetchData();
   }, []);
@@ -35,6 +47,10 @@ export default function AdminPromoCodes() {
   const handleCreate = async () => {
     if (!code || value <= 0) return showToast("Invalid code or value", "error");
     if (isAffiliate && !affiliateEmail) return showToast("Enter affiliate email", "error");
+    if (type === 'discount' && productScope === 'product' && !selectedProductId) {
+      return showToast("Choose a product for this promo code", "error");
+    }
+    const scopedProduct = products.find(product => product.id === selectedProductId);
     try {
       const newPromo = {
         code: code.toUpperCase(),
@@ -42,6 +58,9 @@ export default function AdminPromoCodes() {
         value,
         maxUses,
         maxUsesPerUser,
+        productScope: type === 'discount' ? productScope : 'all',
+        productId: type === 'discount' && productScope === 'product' ? selectedProductId : null,
+        productTitle: type === 'discount' && productScope === 'product' ? scopedProduct?.title || 'Selected product' : null,
         uses: 0,
         usedBy: {}, // Map of uid -> count
         isAffiliate,
@@ -51,6 +70,7 @@ export default function AdminPromoCodes() {
       const docRef = await addDoc(collection(db, 'promocodes'), newPromo);
       setPromos([...promos, { id: docRef.id, ...newPromo }]);
       setCode('');
+      setProductScope('all');
       setIsAffiliate(false);
       setAffiliateEmail('');
       showToast("Promo code created!");
@@ -110,6 +130,43 @@ export default function AdminPromoCodes() {
             <input type="number" value={maxUsesPerUser} onChange={e => setMaxUsesPerUser(Number(e.target.value))} className="w-full bg-[#0f172a] border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500" min="0" />
           </div>
         </div>
+
+        {type === 'discount' && (
+          <div className="mb-4 rounded-xl border border-slate-800 bg-[#0f172a] p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white mb-3">
+              <Box className="w-4 h-4 text-indigo-400" />
+              Product Scope
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Applies To</label>
+                <select
+                  value={productScope}
+                  onChange={e => setProductScope(e.target.value as 'all' | 'product')}
+                  className="w-full bg-[#111827] border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="all">All Products</option>
+                  <option value="product">One Product Only</option>
+                </select>
+              </div>
+              {productScope === 'product' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-1">Product</label>
+                  <select
+                    value={selectedProductId}
+                    onChange={e => setSelectedProductId(e.target.value)}
+                    className="w-full bg-[#111827] border border-slate-800 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  >
+                    {products.map(product => (
+                      <option key={product.id} value={product.id}>{product.title}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">In cart checkout, the discount only affects this product.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-2">
@@ -150,8 +207,7 @@ export default function AdminPromoCodes() {
           promoTx.forEach(tx => {
             totalEarnings += (tx.amount || 0);
             if (p.type === 'discount') {
-              const original = (tx.amount || 0) / (1 - p.value / 100);
-              totalSavings += (original - (tx.amount || 0));
+              totalSavings += Number(tx.discountAmount || 0);
             } else if (p.type === 'balance') {
               totalSavings += p.value;
             }
@@ -164,6 +220,7 @@ export default function AdminPromoCodes() {
                   <div className="font-bold text-white text-xl">{p.code}</div>
                   <div className="text-sm text-slate-400 mt-1">
                     {p.type === 'balance' ? `Adds $${p.value}` : `${p.value}% Discount`} &bull; 
+                    Scope: {p.productScope === 'product' ? p.productTitle || 'One product' : 'All products'} &bull; 
                     Uses: {p.uses} / {p.maxUses === 0 ? '∞' : p.maxUses} &bull; 
                     Per User: {p.maxUsesPerUser === 0 ? '∞' : p.maxUsesPerUser}
                     {p.isAffiliate && <span className="ml-2 text-indigo-400">&bull; Affiliate: {p.affiliateEmail}</span>}
@@ -209,7 +266,7 @@ export default function AdminPromoCodes() {
                     </div>
                     <div>
                       <div className="text-xs text-slate-400 font-medium">Affiliate Earned</div>
-                      <div className="text-lg font-bold text-white">${(totalEarnings * 0.20).toFixed(2)}</div>
+                      <div className="text-lg font-bold text-white">${(totalEarnings * (affiliateCommissionPercent / 100)).toFixed(2)}</div>
                     </div>
                   </div>
                 )}

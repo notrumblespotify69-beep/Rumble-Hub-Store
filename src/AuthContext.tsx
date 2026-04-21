@@ -13,6 +13,7 @@ interface UserProfile {
   discountPercentage?: number;
   reviewDiscountAvailable?: boolean;
   affiliateEarnings?: number;
+  affiliateCode?: string;
   discordId?: string;
   discordUsername?: string;
   discordAccessToken?: string;

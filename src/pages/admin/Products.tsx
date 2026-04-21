@@ -14,8 +14,8 @@ export default function AdminProducts() {
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [instructions, setInstructions] = useState('');
   const [image, setImage] = useState('');
+  const [upsellProductIds, setUpsellProductIds] = useState<string[]>([]);
   const [variants, setVariants] = useState<{id: string, name: string, price: number}[]>([
     { id: 'v1', name: 'Standard', price: 10 }
   ]);
@@ -37,8 +37,8 @@ export default function AdminProducts() {
     setEditingId(null);
     setTitle('');
     setDescription('');
-    setInstructions('');
     setImage('');
+    setUpsellProductIds([]);
     setVariants([{ id: 'v1', name: 'Standard', price: 10 }]);
   };
 
@@ -46,8 +46,8 @@ export default function AdminProducts() {
     setEditingId(p.id);
     setTitle(p.title);
     setDescription(p.description);
-    setInstructions(p.instructions || '');
     setImage(p.image);
+    setUpsellProductIds(p.upsellProductIds || []);
     setVariants(p.variants || []);
   };
 
@@ -55,7 +55,7 @@ export default function AdminProducts() {
     if (!title || !image || variants.length === 0) return showToast("Title, image, and at least 1 variant are required.", "error");
 
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    const data = { title, description, instructions, image, variants, slug };
+    const data = { title, description, image, variants, slug, upsellProductIds };
 
     try {
       if (editingId) {
@@ -137,22 +137,39 @@ export default function AdminProducts() {
             <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-[#0f172a] border border-slate-800 rounded-lg px-3 py-2 text-white h-32 font-mono text-sm focus:outline-none focus:border-indigo-500" placeholder="**Bold**, *Italic*, # Heading, - List" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-1">Instructions After Purchase</label>
-            <textarea
-              value={instructions}
-              onChange={e => setInstructions(e.target.value)}
-              className="w-full bg-[#0f172a] border border-slate-800 rounded-lg px-3 py-2 text-white h-40 font-mono text-sm focus:outline-none focus:border-indigo-500"
-              placeholder="Setup guide, Discord steps, redemption notes, links..."
-            />
-            <p className="text-xs text-slate-500 mt-1">Shown on the order complete page and included in the downloadable .txt file.</p>
-          </div>
-          <div>
             <label className="block text-sm font-medium text-slate-400 mb-2">Product Image (16:9)</label>
             <ImageCropper 
               currentImage={image} 
               onImageCropped={(url) => setImage(url)} 
               aspectRatio={16/9}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Product Upsells</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {products
+                .filter(product => product.id !== editingId)
+                .map(product => (
+                  <label key={product.id} className="flex items-center gap-3 rounded-lg border border-slate-800 bg-[#0f172a] p-3 text-sm text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={upsellProductIds.includes(product.id)}
+                      onChange={e => {
+                        setUpsellProductIds(current => (
+                          e.target.checked
+                            ? [...current, product.id]
+                            : current.filter(id => id !== product.id)
+                        ));
+                      }}
+                      className="rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    {product.image && <img src={product.image} alt={product.title} className="w-9 h-9 rounded-md object-cover bg-slate-900" />}
+                    <span className="truncate">{product.title}</span>
+                  </label>
+                ))}
+            </div>
+            <p className="text-xs text-slate-500 mt-2">Shown on the product page as recommended add-ons.</p>
           </div>
           
           <div>

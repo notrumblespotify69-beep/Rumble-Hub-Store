@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { ArrowLeft, User as UserIcon, Package, Key, ShoppingBag, Plus, Save, Image as ImageIcon, Edit2, Trash2, Ticket, LayoutDashboard, Wallet, Link as LinkIcon, Copy, CreditCard, Bitcoin, Gamepad2, Receipt } from 'lucide-react';
+import { ArrowLeft, User as UserIcon, Package, Key, ShoppingBag, Plus, Save, Image as ImageIcon, Edit2, Trash2, Ticket, LayoutDashboard, Wallet, Link as LinkIcon, Copy, CreditCard, Bitcoin, Gamepad2, Receipt, Download, Paperclip } from 'lucide-react';
 import { db } from '../firebase';
 import { collection, getDocs, doc, updateDoc, addDoc, query, where, deleteDoc, orderBy, getDoc, onSnapshot, writeBatch } from 'firebase/firestore';
 import ImageCropper from '../components/ImageCropper';
@@ -13,6 +13,45 @@ function Toast({ toast }: { toast: {message: string, type: string} | null }) {
   return (
     <div className={`fixed bottom-4 right-4 px-6 py-3 rounded-lg font-medium text-white shadow-xl z-[100] animate-in slide-in-from-bottom-5 ${toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
       {toast.message}
+    </div>
+  );
+}
+
+function readAttachment(file: File): Promise<any> {
+  return new Promise((resolve, reject) => {
+    if (file.size > 700 * 1024) {
+      reject(new Error('Attachment must be under 700KB.'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve({
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      size: file.size,
+      dataUrl: String(reader.result || '')
+    });
+    reader.onerror = () => reject(new Error('Failed to read attachment.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function AttachmentList({ attachments }: { attachments?: any[] }) {
+  if (!attachments?.length) return null;
+  return (
+    <div className="mt-3 space-y-2">
+      {attachments.map((file, index) => (
+        <a
+          key={`${file.name}-${index}`}
+          href={file.dataUrl || file.url}
+          download={file.name}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs hover:bg-black/30"
+        >
+          <Paperclip className="w-3.5 h-3.5" />
+          <span className="truncate">{file.name || 'Attachment'}</span>
+        </a>
+      ))}
     </div>
   );
 }
@@ -754,6 +793,28 @@ function PurchasesTab({ user }: { user: any }) {
 
   if (loading) return <div className="text-zinc-500">Loading purchases...</div>;
 
+  const handleCopy = async (key: string) => {
+    await navigator.clipboard.writeText(key);
+  };
+
+  const handleDownload = (key: any) => {
+    const text = [
+      'Rumble Hub Purchase',
+      `Product: ${key.productName || 'Product'}`,
+      `Variant: ${key.variantName || 'Standard'}`,
+      `Key: ${key.keyString}`,
+      '',
+      key.instructions ? `Instructions:\n${key.instructions}` : ''
+    ].join('\n');
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `rumble-hub-${key.productName || 'key'}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-6">My Purchases</h2>
@@ -764,15 +825,34 @@ function PurchasesTab({ user }: { user: any }) {
       ) : (
         <div className="space-y-4">
           {keys.map(k => (
-            <div key={k.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="font-bold text-lg text-white">{k.productName}</div>
-                <div className="text-sm text-zinc-400">{k.variantName}</div>
-                <div className="text-xs text-zinc-500 mt-1">Purchased: {new Date(k.purchasedAt).toLocaleString()}</div>
+            <div key={k.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex flex-col gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div>
+                  <div className="font-bold text-lg text-white">{k.productName}</div>
+                  <div className="text-sm text-zinc-400">{k.variantName}</div>
+                  <div className="text-xs text-zinc-500 mt-1">Purchased: {new Date(k.purchasedAt).toLocaleString()}</div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => handleCopy(k.keyString)} className="rounded-lg border border-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                    <Copy className="w-3.5 h-3.5" /> Copy Key
+                  </button>
+                  <button onClick={() => handleDownload(k)} className="rounded-lg border border-zinc-800 px-3 py-2 text-xs font-medium text-zinc-300 hover:bg-zinc-800 flex items-center gap-2">
+                    <Download className="w-3.5 h-3.5" /> Download
+                  </button>
+                  <Link to="/profile?tab=tickets&new=1" className="rounded-lg border border-indigo-500/30 px-3 py-2 text-xs font-medium text-indigo-300 hover:bg-indigo-500/10 flex items-center gap-2">
+                    <Ticket className="w-3.5 h-3.5" /> Open Ticket
+                  </Link>
+                </div>
               </div>
               <div className="bg-black/50 border border-zinc-800 px-4 py-2 rounded-lg font-mono text-indigo-400 select-all">
                 {k.keyString}
               </div>
+              {k.instructions && (
+                <div className="rounded-lg border border-zinc-800 bg-black/20 p-4 text-sm text-zinc-300 whitespace-pre-wrap">
+                  <div className="mb-2 text-xs uppercase tracking-wider text-zinc-500">Instructions</div>
+                  {k.instructions}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1460,6 +1540,8 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
   const [newMessage, setNewMessage] = useState('');
   const [isCreating, setIsCreating] = useState(startCreating);
   const [newSubject, setNewSubject] = useState('');
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [createError, setCreateError] = useState('');
   const msgInitLoad = React.useRef(true);
 
   const selectedTicket = tickets.find(t => t.id === selectedTicketId) || null;
@@ -1504,6 +1586,11 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
     if (!newSubject.trim()) return;
 
     try {
+      const activeTickets = tickets.filter(ticket => ticket.status !== 'closed').length;
+      if (activeTickets >= 3) {
+        setCreateError('You can have up to 3 active support tickets at once.');
+        return;
+      }
       const batch = writeBatch(db);
       const newTicketRef = doc(collection(db, 'tickets'));
       
@@ -1531,7 +1618,13 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
 
       setNewSubject('');
       setIsCreating(false);
+      setCreateError('');
       setSelectedTicketId(newTicketRef.id);
+      fetch('/api/discord/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'ticket_created', ticketId: newTicketRef.id })
+      }).catch(() => {});
     } catch (err: any) {
       console.error(err);
       alert(err.message);
@@ -1540,7 +1633,7 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedTicket) return;
+    if ((!newMessage.trim() && attachments.length === 0) || !selectedTicket) return;
 
     try {
       const batch = writeBatch(db);
@@ -1548,6 +1641,7 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
       
       batch.set(newMessageRef, {
         text: newMessage,
+        attachments,
         senderId: user.uid,
         senderName: profile.displayName || 'Me',
         ticketUserId: user.uid,
@@ -1558,13 +1652,14 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
       const ticketRef = doc(db, 'tickets', selectedTicket.id);
       batch.update(ticketRef, {
         updatedAt: Date.now(),
-        lastMessage: newMessage,
+        lastMessage: newMessage || `${attachments.length} attachment(s)`,
         status: 'active'
       });
       
       await batch.commit();
 
       setNewMessage('');
+      setAttachments([]);
     } catch (err: any) {
       console.error(err);
       alert(err.message);
@@ -1578,7 +1673,15 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
         <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
           <h2 className="font-bold text-white">My Tickets</h2>
           <button 
-            onClick={() => setIsCreating(true)}
+            onClick={() => {
+              if (tickets.filter(ticket => ticket.status !== 'closed').length >= 3) {
+                setCreateError('You can have up to 3 active support tickets at once.');
+                setIsCreating(true);
+                return;
+              }
+              setCreateError('');
+              setIsCreating(true);
+            }}
             className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
           >
             <Plus className="w-4 h-4" />
@@ -1596,6 +1699,7 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
                   className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
                   autoFocus
                 />
+                {createError && <div className="text-xs text-red-400">{createError}</div>}
                 <div className="flex gap-2">
                   <button type="submit" className="flex-1 bg-indigo-600 text-white text-xs py-1.5 rounded-lg">Create</button>
                   <button type="button" onClick={() => setIsCreating(false)} className="flex-1 bg-zinc-800 text-white text-xs py-1.5 rounded-lg">Cancel</button>
@@ -1658,6 +1762,7 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
                         <span>{new Date(msg.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                       </div>
                       <div className="text-sm break-words whitespace-pre-wrap">{msg.text}</div>
+                      <AttachmentList attachments={msg.attachments} />
                     </div>
                   </div>
                 );
@@ -1666,16 +1771,43 @@ function TicketsTab({ user, profile, startCreating = false }: { user: any, profi
 
             <div className="p-4 border-t border-zinc-800">
               <form onSubmit={handleSendMessage} className="flex gap-2">
-                <input 
-                  type="text" 
-                  value={newMessage}
-                  onChange={e => setNewMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
-                />
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={newMessage}
+                    onChange={e => setNewMessage(e.target.value)}
+                    placeholder="Type your message..."
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  />
+                  {attachments.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {attachments.map((file, index) => (
+                        <span key={`${file.name}-${index}`} className="rounded-full bg-zinc-800 px-3 py-1 text-xs text-zinc-300">{file.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <label className="bg-zinc-800 hover:bg-zinc-700 text-white px-3 py-2 rounded-lg font-medium transition-colors cursor-pointer flex items-center">
+                  <Paperclip className="w-4 h-4" />
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={async e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const attachment = await readAttachment(file);
+                        setAttachments(current => [...current, attachment].slice(0, 3));
+                      } catch (error: any) {
+                        alert(error.message);
+                      }
+                      e.target.value = '';
+                    }}
+                  />
+                </label>
                 <button 
                   type="submit"
-                  disabled={!newMessage.trim()}
+                  disabled={!newMessage.trim() && attachments.length === 0}
                   className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                 >
                   Send

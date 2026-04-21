@@ -9,6 +9,7 @@ export default function AdminDiscord() {
   const [clientSecret, setClientSecret] = useState('');
   const [guildId, setGuildId] = useState('');
   const [roleId, setRoleId] = useState('');
+  const [webhookUrl, setWebhookUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null);
 
@@ -28,6 +29,7 @@ export default function AdminDiscord() {
           setClientSecret(data.clientSecret || '');
           setGuildId(data.guildId || '');
           setRoleId(data.roleId || '');
+          setWebhookUrl(data.webhookUrl || '');
         }
       } catch (e) {
         console.error(e);
@@ -46,6 +48,7 @@ export default function AdminDiscord() {
         clientSecret,
         guildId,
         roleId,
+        webhookUrl,
         updatedAt: Date.now()
       }, { merge: true });
       showToast('Discord settings saved successfully!');
@@ -126,6 +129,18 @@ export default function AdminDiscord() {
             className="w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
             placeholder="Enter the role ID to assign after purchase"
           />
+        </div>
+
+        <div className="pt-6 border-t border-[#222b3d]">
+          <label className="block text-sm font-medium text-slate-300 mb-2">Notifications Webhook URL</label>
+          <input
+            type="password"
+            value={webhookUrl}
+            onChange={e => setWebhookUrl(e.target.value)}
+            className="w-full bg-[#0f172a] border border-[#222b3d] rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500"
+            placeholder="https://discord.com/api/webhooks/..."
+          />
+          <p className="text-xs text-slate-500 mt-2">Used for order and support ticket notifications.</p>
         </div>
 
         <div className="pt-4 border-t border-[#222b3d] flex justify-end">

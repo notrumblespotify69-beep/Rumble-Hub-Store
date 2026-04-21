@@ -19,6 +19,7 @@ export default function Checkout() {
 
   const [promoCode, setPromoCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [promoError, setPromoError] = useState('');
   const [promoSuccess, setPromoSuccess] = useState('');
 
@@ -30,13 +31,27 @@ export default function Checkout() {
   const [error, setError] = useState('');
   
   const [paymentSettings, setPaymentSettings] = useState<any>(null);
+  const [discountSettings, setDiscountSettings] = useState({
+    reviewDiscountPercent: 5,
+    affiliateCommissionPercent: 20
+  });
 
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const d = await getDoc(doc(db, 'settings', 'payments'));
-        if (d.exists()) {
-          setPaymentSettings(d.data());
+        const [paymentsSnap, discountsSnap] = await Promise.all([
+          getDoc(doc(db, 'settings', 'payments')),
+          getDoc(doc(db, 'settings', 'discounts'))
+        ]);
+        if (paymentsSnap.exists()) {
+          setPaymentSettings(paymentsSnap.data());
+        }
+        if (discountsSnap.exists()) {
+          const data = discountsSnap.data() as any;
+          setDiscountSettings({
+            reviewDiscountPercent: Number(data.reviewDiscountPercent ?? 5),
+            affiliateCommissionPercent: Number(data.affiliateCommissionPercent ?? 20)
+          });
         }
       } catch(e) {}
     };
@@ -72,9 +87,22 @@ export default function Checkout() {
   }, [productId, variantId, isCartCheckout, cart, navigate]);
 
   const subtotal = isCartCheckout ? cartTotal : (variant?.price || 0) * quantity;
-  const reviewDiscountPercent = profile?.reviewDiscountAvailable && discountPercent === 0 ? 5 : 0;
-  const effectiveDiscountPercent = Math.max(discountPercent, reviewDiscountPercent);
-  const totalAfterDiscount = subtotal * (1 - effectiveDiscountPercent / 100);
+  const getProductSubtotal = (targetProductId?: string | null) => {
+    if (!targetProductId) return subtotal;
+    if (isCartCheckout) {
+      return cart
+        .filter(item => item.productId === targetProductId)
+        .reduce((sum, item) => sum + item.price * item.quantity, 0);
+    }
+    return productId === targetProductId ? subtotal : 0;
+  };
+  const promoDiscountBase = appliedPromo?.productScope === 'product' ? getProductSubtotal(appliedPromo.productId) : subtotal;
+  const promoDiscountAmount = discountPercent > 0 ? promoDiscountBase * (discountPercent / 100) : 0;
+  const reviewDiscountPercent = profile?.reviewDiscountAvailable && discountPercent === 0 ? Number(discountSettings.reviewDiscountPercent || 0) : 0;
+  const reviewDiscountAmount = reviewDiscountPercent > 0 ? subtotal * (reviewDiscountPercent / 100) : 0;
+  const effectiveDiscountPercent = discountPercent > 0 ? discountPercent : reviewDiscountPercent;
+  const discountAmount = discountPercent > 0 ? promoDiscountAmount : reviewDiscountAmount;
+  const totalAfterDiscount = Math.max(0, subtotal - discountAmount);
   const balanceToUse = useBalance ? Math.min(profile?.balance || 0, totalAfterDiscount) : 0;
   const finalAmount = totalAfterDiscount - balanceToUse;
 
@@ -95,6 +123,7 @@ export default function Checkout() {
       }
 
       const promo = promoSnap.docs[0].data();
+      const scopedProductId = promo.productScope === 'product' ? promo.productId : null;
 
       if (promo.maxUses > 0 && promo.uses >= promo.maxUses) {
         setPromoError('Coupon code has reached maximum uses');
@@ -108,9 +137,24 @@ export default function Checkout() {
       }
 
       if (promo.type === 'discount') {
+        if (scopedProductId && getProductSubtotal(scopedProductId) <= 0) {
+          setPromoError(`This coupon only works for ${promo.productTitle || 'a specific product'}.`);
+          return;
+        }
         setDiscountPercent(promo.value);
+        setAppliedPromo({
+          code: code.toUpperCase(),
+          value: promo.value,
+          productScope: promo.productScope || 'all',
+          productId: scopedProductId,
+          productTitle: promo.productTitle || ''
+        });
         setPromoCode(code.toUpperCase());
-        setPromoSuccess(`Applied ${promo.value}% discount!`);
+        setPromoSuccess(
+          scopedProductId
+            ? `Applied ${promo.value}% discount to ${promo.productTitle || 'selected product'}!`
+            : `Applied ${promo.value}% discount!`
+        );
       } else {
         setPromoError('This coupon is only for balance top-ups.');
       }
@@ -230,9 +274,16 @@ export default function Checkout() {
       const appliedDiscountPercent = metadata?.discountPercent ? Number(metadata.discountPercent) : effectiveDiscountPercent;
       const appliedPromoCode = metadata?.promoCode || promoCode;
       const appliedBalanceToUse = metadata?.balanceUsed ? Number(metadata.balanceUsed) : balanceToUse;
-      const appliedReviewDiscount = metadata?.reviewDiscount === 'true' || (reviewDiscountPercent > 0 && appliedDiscountPercent === 5 && !appliedPromoCode);
+      const appliedReviewDiscount = metadata?.reviewDiscount === 'true' || (reviewDiscountPercent > 0 && !appliedPromoCode);
       const currentSubtotal = isCartCheckout ? cartTotal : (variant?.price || 0) * quantity;
-      const currentTotalAfterDiscount = currentSubtotal * (1 - appliedDiscountPercent / 100);
+      const metadataPromoProductId = metadata?.promoProductId || appliedPromo?.productId || null;
+      const currentPromoDiscountBase = metadataPromoProductId ? getProductSubtotal(metadataPromoProductId) : currentSubtotal;
+      const currentDiscountBase = appliedReviewDiscount ? currentSubtotal : currentPromoDiscountBase;
+      const currentDiscountAmount = appliedDiscountPercent > 0 ? currentDiscountBase * (appliedDiscountPercent / 100) : 0;
+      const currentTotalAfterDiscount = Math.max(0, currentSubtotal - currentDiscountAmount);
+      const affiliateCommissionPercent = metadata?.affiliateCommissionPercent
+        ? Number(metadata.affiliateCommissionPercent)
+        : Number(discountSettings.affiliateCommissionPercent || 0);
 
       const userRef = doc(db, 'users', user.uid);
       const promoQuery =
@@ -300,6 +351,13 @@ export default function Checkout() {
           if (maxUsesPerUser > 0 && userUses >= maxUsesPerUser) {
             throw new Error('You have reached the maximum uses for this coupon.');
           }
+          if (currentPromoData.productScope === 'product') {
+            const scopedProductId = currentPromoData.productId;
+            const hasScopedProduct = keysToBuy.some(key => key.productId === scopedProductId);
+            if (!hasScopedProduct || currentPromoDiscountBase <= 0) {
+              throw new Error('This coupon does not apply to the selected product.');
+            }
+          }
 
           promoDetailsStr = currentPromoData.type === 'balance' ? `+$${currentPromoData.value} bonus` : `${currentPromoData.value}% discount`;
           promoUpdate = {
@@ -310,7 +368,7 @@ export default function Checkout() {
 
         const shouldCreditAffiliate = Boolean(affiliateDocRef && affSnap?.exists() && affSnap.id !== user.uid);
         const affData = shouldCreditAffiliate ? affSnap!.data() as any : null;
-        const earned = shouldCreditAffiliate ? currentTotalAfterDiscount * 0.20 : 0;
+        const earned = shouldCreditAffiliate ? currentTotalAfterDiscount * (affiliateCommissionPercent / 100) : 0;
 
         if (promoDocRef && promoUpdate) {
           transaction.update(promoDocRef, promoUpdate);
@@ -382,9 +440,12 @@ export default function Checkout() {
           items: deliveredItems,
           subtotal: currentSubtotal,
           discountPercent: appliedDiscountPercent,
+          discountAmount: currentDiscountAmount,
+          discountBase: currentDiscountBase,
           reviewDiscountApplied: appliedReviewDiscount,
           balanceUsed: appliedBalanceToUse,
           promoCode: appliedPromoCode || null,
+          promoProductId: metadataPromoProductId || null,
           promoDetails: promoDetailsStr,
           createdAt: purchasedAt,
           ...(sessionId ? { sessionId } : {})
@@ -402,6 +463,12 @@ export default function Checkout() {
             body: JSON.stringify({ userId: user.uid })
          });
       } catch (e) {}
+
+      fetch('/api/discord/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'order_paid', orderId: transactionRef.id })
+      }).catch(() => {});
 
       navigate(`/order/${transactionRef.id}`);
     } catch (purchaseError: any) {
@@ -434,7 +501,11 @@ export default function Checkout() {
         }
         if (discountPercent > 0) {
           metadata.promoCode = promoCode.toUpperCase();
+          if (appliedPromo?.productScope === 'product') {
+            metadata.promoProductId = appliedPromo.productId;
+          }
         }
+        metadata.affiliateCommissionPercent = discountSettings.affiliateCommissionPercent;
         if (useBalance && balanceToUse > 0) {
           metadata.balanceUsed = balanceToUse;
         }
@@ -550,7 +621,7 @@ export default function Checkout() {
               {effectiveDiscountPercent > 0 && (
                 <div className="flex justify-between text-green-400">
                   <span>{reviewDiscountPercent > 0 && discountPercent === 0 ? 'Review Reward' : 'Discount'} ({effectiveDiscountPercent}%)</span>
-                  <span>-${(subtotal * (effectiveDiscountPercent / 100)).toFixed(2)}</span>
+                  <span>-${discountAmount.toFixed(2)}</span>
                 </div>
               )}
               {balanceToUse > 0 && (
@@ -612,7 +683,13 @@ export default function Checkout() {
                   <input
                     type="text"
                     value={promoCode}
-                    onChange={e => setPromoCode(e.target.value)}
+                    onChange={e => {
+                      setPromoCode(e.target.value);
+                      setDiscountPercent(0);
+                      setAppliedPromo(null);
+                      setPromoSuccess('');
+                      setPromoError('');
+                    }}
                     placeholder="Have a coupon code? Enter it here."
                     className="flex-1 bg-[#1A1D24] border border-zinc-800 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
                   />

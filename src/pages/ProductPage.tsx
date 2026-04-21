@@ -29,6 +29,7 @@ export default function ProductPage() {
   const [viewers, setViewers] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'reviews'>('description');
   const [quantity, setQuantity] = useState(1);
+  const [upsells, setUpsells] = useState<any[]>([]);
   const [toast, setToast] = useState<{message: string, type: 'success'|'error'} | null>(null);
   
   // Reviews state
@@ -83,6 +84,24 @@ export default function ProductPage() {
     };
     fetchProduct();
   }, [slug]);
+
+  useEffect(() => {
+    const fetchUpsells = async () => {
+      if (!product?.upsellProductIds?.length) {
+        setUpsells([]);
+        return;
+      }
+
+      const items = await Promise.all(
+        product.upsellProductIds.slice(0, 3).map(async (id: string) => {
+          const snap = await getDoc(doc(db, 'products', id));
+          return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+        })
+      );
+      setUpsells(items.filter(Boolean));
+    };
+    fetchUpsells();
+  }, [product?.id]);
 
   // Real-time Viewers
   useEffect(() => {
@@ -548,6 +567,33 @@ export default function ProductPage() {
                 </button>
               </div>
             </div>
+
+            {/* Viewers */}
+            {upsells.length > 0 && (
+              <div className="bg-[#11141D] border border-zinc-800/50 rounded-xl p-6">
+                <h4 className="text-sm font-medium text-zinc-400 mb-4">Recommended Add-ons</h4>
+                <div className="space-y-3">
+                  {upsells.map((item: any) => {
+                    const firstVariant = item.variants?.[0];
+                    return (
+                      <div key={item.id} className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+                        {item.image && <img src={item.image} alt={item.title} className="h-12 w-12 rounded-lg object-cover bg-zinc-800" />}
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-white">{item.title}</div>
+                          <div className="text-xs text-zinc-500">{firstVariant ? `From $${Number(firstVariant.price || 0).toFixed(2)}` : 'View details'}</div>
+                        </div>
+                        <Link
+                          to={`/product/${item.slug || item.id}`}
+                          className="rounded-lg border border-indigo-500/30 px-3 py-2 text-xs font-medium text-indigo-300 hover:bg-indigo-500/10"
+                        >
+                          View
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Viewers */}
             <div className="bg-[#11141D] border border-zinc-800/50 rounded-xl p-4 flex items-center gap-3 text-sm text-zinc-400">
