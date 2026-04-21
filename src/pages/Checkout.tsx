@@ -89,7 +89,6 @@ export default function Checkout() {
 
       if (promoSnap.empty) {
         setPromoError('Invalid coupon code');
-        if (codeToApply) localStorage.removeItem('savedPromo');
         return;
       }
 
@@ -97,14 +96,12 @@ export default function Checkout() {
 
       if (promo.maxUses > 0 && promo.uses >= promo.maxUses) {
         setPromoError('Coupon code has reached maximum uses');
-        if (codeToApply) localStorage.removeItem('savedPromo');
         return;
       }
 
       const userUses = promo.usedBy?.[user?.uid || ''] || 0;
       if (promo.maxUsesPerUser > 0 && userUses >= promo.maxUsesPerUser) {
         setPromoError('You have reached the maximum uses for this coupon');
-        if (codeToApply) localStorage.removeItem('savedPromo');
         return;
       }
 
@@ -112,22 +109,13 @@ export default function Checkout() {
         setDiscountPercent(promo.value);
         setPromoCode(code.toUpperCase());
         setPromoSuccess(`Applied ${promo.value}% discount!`);
-        localStorage.setItem('savedPromo', code.toUpperCase());
       } else {
         setPromoError('This coupon is only for balance top-ups.');
-        if (codeToApply) localStorage.removeItem('savedPromo');
       }
     } catch {
       setPromoError('Failed to apply coupon');
     }
   };
-
-  useEffect(() => {
-    const savedPromo = localStorage.getItem('savedPromo');
-    if (savedPromo && user) {
-      handleApplyPromo(savedPromo);
-    }
-  }, [user]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -355,7 +343,6 @@ export default function Checkout() {
         clearCart();
       }
 
-      localStorage.removeItem('savedPromo');
       try {
          await fetch('/api/discord/give-role', {
             method: 'POST',
